@@ -1,9 +1,12 @@
 PORT=4730
 
-kurai: src/kurai.c
+out:
+	mkdir -p out
+
+kurai: out src/kurai.c
 	gcc -lncurses -DPORT=$(PORT) src/kurai.c -o out/kurai
 
-saba: src/saba.c
+saba: out src/saba.c
 	gcc -DPORT=$(PORT) src/saba.c -o out/saba
 
 clean: 
