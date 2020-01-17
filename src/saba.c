@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 		struct sockaddr_in sad;
 		memset(&sad, 0, sizeof(sad));
 		sad.sin_family = AF_INET;
-		sad.sin_port = htons(20000);
+		sad.sin_port = htons(PORT);
 		sad.sin_addr.s_addr = INADDR_ANY;
 		int optval = 1;	
 		setsockopt(serverFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
