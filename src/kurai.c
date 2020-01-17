@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
 		printf("socket created!\n");
 		struct sockaddr_in sad = {
 			AF_INET, 
-			htons(20000), 
+			htons(PORT), 
 			inet_addr(argv[1])};
 		int connection = connect(socketFD, (struct sockaddr*) &sad, sizeof(sad));
 		if (connection < 0) {
