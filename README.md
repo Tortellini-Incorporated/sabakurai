@@ -1,4 +1,4 @@
 # Sabakurai
 
-The race for bass (and C1FR1-sama)
+The race for bass (and surabu-sama)
 
