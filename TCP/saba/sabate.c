@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 		printf("connected to a client\n");
-		manageConnection(serverFD);
+		manageConnection(clientConnection);
 		close(clientConnection);
 		shutdown(serverFD, SHUT_RDWR);
 		close(serverFD);
@@ -49,5 +49,7 @@ int main(int argc, char** argv) {
 
 int manageConnection(int fileDescriptor) {
 	const char* message = "ANK ME HARDER";
-	write(fileDescriptor, message, strlen(message) + 1);
+	if (send(fileDescriptor, message, strlen(message) + 1, 0) < 0) {
+		perror("Erro");
+	}
 }
