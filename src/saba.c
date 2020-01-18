@@ -42,12 +42,11 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < MAX_CLIENTS; ++i) {
 		clientSockets[i] = 0;
 	}
-
 	if (listen(serverFD, 15) < 0) {
 		fprintf(stderr, "error: failed listen, get ears m8\n");
 		return 1;
 	}
-	
+	printf("server starting\n");
 	int activity;
 
 	socklen_t addressSize = sizeof(sad);
@@ -56,7 +55,7 @@ int main(int argc, char** argv) {
 
 		FD_SET(serverFD, &readFD);
 
-		int maxFD = 0;
+		int maxFD = serverFD;
 		
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			if (clientSockets[i] > 0) {
@@ -90,6 +89,7 @@ int main(int argc, char** argv) {
 			for (int i = 0; i < MAX_CLIENTS; ++i) {
 				if (clientSockets[i] == 0) {
 					clientSockets[i] = newSocket;
+					break;
 				}
 			}
 		}
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 					clientSockets[i] = 0;
 				} else {
 					buffer[bytesRead] = '\0';
-					fprintf(stdout, "client id %d sent message %s\n", clientSockets[i], buffer);
+					fprintf(stdout, "client id %d sent message of length %d: %s\n", clientSockets[i], bytesRead, buffer);
 				}
 			}
 		}
