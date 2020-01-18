@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 //client
 int main(int argc, char** argv) {
@@ -22,13 +23,19 @@ int main(int argc, char** argv) {
 			fprintf(stderr, "there was an error with message %d w/ connection\n", connection);
 			return 1;
 		}
+		printf("connected");
 		char buffer[64];
 		int numBytes = read(socketFD, buffer, 64);
 		printf("message of length %d recieved: %s\n", numBytes, buffer);
+		char* line = 0;
+		size_t length = 0;
+		do {
+			getline(&line, &length, stdin);
+			write(socketFD, line, strlen(line) - 1);
+		} while (line[0] != 'q');
 	} else {
 		printf("failed to create socket\n");
 	}
 	close(socketFD);
-	printf("ank me daddy\n");
 	return 0;
 }
