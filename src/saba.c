@@ -7,7 +7,6 @@
 
 //server
 
-
 #define MAX_CLIENTS 10
 
 int manageConnection(int);
@@ -109,10 +108,7 @@ int main(int argc, char** argv) {
 		}
 
 	}
-	
-	
-	
-	
+		
 	/*struct sockaddr client;
 	int clientlen = sizeof(client);
 	int clientConnection = accept(serverFD, &client, &clientlen);
