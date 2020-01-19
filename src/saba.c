@@ -10,8 +10,6 @@
 
 #define MAX_CLIENTS 10
 
-int manageNewConnection(int);
-
 int updateFDSet(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
 	FD_ZERO(fdSet);
 
