@@ -6,7 +6,7 @@
 		#define _WIN32_WINNT 0x0501
 	#endif
 
-	typedef Socket SOCKET;
+	typedef SOCKET Socket;
 
 	int sockInit() {
 		WSADATA wsaData;
@@ -29,7 +29,7 @@
 	#include <arpa/inet.h>
 	#include <unistd.h>
 
-	typedef Socket int;
+	typedef int Socket;
 
 	#define INVALID_SOCKET -1
 

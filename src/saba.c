@@ -8,7 +8,6 @@
 
 //server
 
-
 #define MAX_CLIENTS 10
 
 int manageNewConnection(int);
