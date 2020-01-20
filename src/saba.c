@@ -19,10 +19,44 @@ typedef struct serverSession {
 	void* sessionData;
 } serverSession;
 
-int createServer(serverSession* server, int capacity, int port) {
+typedef enum serverState {
+	SSTATE_NORMAL		= 0,
+	SSTATE_CALM_EXIT	= 1,
+	SSTATE_ERROR_UNKNOWN	= -1,
+	SSTATE_INVALID_SOCKET	= -2,
+	SSTATE_FAILED_BIND	= -3,
+	SSTATE_FAILED_LISTEN	= -4,
+	SSTATE_FAILED_SELECT	= -5,
+	SSTATE_FAILED_ACCEPT	= -6,
+} serverState;
+
+typedef serverState (*packetRecievedCallback)(serverSession*, int, void*, int);
+/* 
+ * arg 1 is the session from which the packet was recieved 
+ * arg 2 is the index of the client which send the packet
+ * arg 3 is the data from the client
+ * arg 4 is the length of the packet
+ */
+
+typedef serverState (*newConnectionCallback)(serverSession*, int, struct sockaddr_in);
+
+/*
+ * arg 1 is the session which the new client connected to
+ * arg 2 is the index of the new client
+ * arg 3 is the address of the client
+ */
+
+typedef serverState (*disconnectCallback)(serverSession*, int);
+
+/*
+ * arg 1 is the session which the client disconnected from
+ * arg 2 is the index of the client which disconnected
+ */
+
+serverState createServer(serverSession* server, int capacity, int port) {
 	server->server = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (server->server < 0) {
-		return 1;
+		return SSTATE_INVALID_SOCKET;
 	}
 
 	struct sockaddr_in sad;
@@ -35,19 +69,19 @@ int createServer(serverSession* server, int capacity, int port) {
 	setsockopt(server->server, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
 
 	if (bind(server->server, (struct sockaddr*)&sad, sizeof(sad)) < 0) {
-		return 2;
+		return SSTATE_FAILED_BIND;
 	}
 
 	server->clients = calloc(capacity, sizeof(int));
 	server->maxClients = capacity;
 
 	if (listen(server->server, 15) < 0) {
-		return 3;
+		return SSTATE_FAILED_LISTEN;
 	}
-	return 0;
+	return SSTATE_NORMAL;
 }
 
-int updateFDSet(serverSession* server) {
+serverState updateFDSet(serverSession* server) {
 	FD_ZERO(&server->fdSet);
 
 	FD_SET(server->server, &server->fdSet);
@@ -68,17 +102,13 @@ int updateFDSet(serverSession* server) {
 	timeoutPeriod.tv_sec = 3;
 
 	if (select(maxSocket + 1, &server->fdSet, NULL, NULL, &timeoutPeriod) < 0) {
-		fprintf(stderr, "error: failed activity?\n");
-		return 1;
+		return SSTATE_FAILED_SELECT;
 	}
 
-	printf("debug: %d seconds and %d microseconds\n", timeoutPeriod.tv_sec, timeoutPeriod.tv_usec);
-	printf("debug: about %f seconds total\n", (float) timeoutPeriod.tv_sec + ((float)(timeoutPeriod.tv_usec) / 1000000.0));
-
-	return 0;
+	return SSTATE_NORMAL;
 }
 
-int updateFDSetTimed(serverSession* server, struct timeval* timeoutPeriod) {
+serverState updateFDSetTimed(serverSession* server, struct timeval* timeoutPeriod) {
 	FD_ZERO(&server->fdSet);
 
 	FD_SET(server->server, &server->fdSet);
@@ -95,14 +125,13 @@ int updateFDSetTimed(serverSession* server, struct timeval* timeoutPeriod) {
 	}
 
 	if (select(maxSocket + 1, &server->fdSet, NULL, NULL, timeoutPeriod) < 0) {
-		fprintf(stderr, "error: failed activity?\n");
-		return 1;
+		return SSTATE_FAILED_SELECT;
 	}
 
-	return 0;
+	return SSTATE_NORMAL;
 }
 
-int checkRequests(serverSession* server) {
+serverState checkRequests(serverSession* server, newConnectionCallback callback) {
 	if (FD_ISSET(server->server, &server->fdSet)) {
 		struct sockaddr_in socketAddress;
 		socklen_t addressSize = sizeof(socketAddress);
@@ -110,10 +139,10 @@ int checkRequests(serverSession* server) {
 		int newSocket = accept(server->server, (struct sockaddr*)&socketAddress, &addressSize);
 		if (newSocket < 0) {
 			fprintf(stderr, "failed to accept request");
-			return -1;
+			return SSTATE_FAILED_ACCEPT;
 		}
-
-		for (int i = 0; i < server->maxClients; ++i) {
+		int i;
+		for (i = 0; i < server->maxClients; ++i) {
 			if (server->clients[i] == 0) {
 				server->clients[i] = newSocket;
 				break;
@@ -121,52 +150,71 @@ int checkRequests(serverSession* server) {
 		}
 
 		/*handle the connection*/
-		fprintf(stdout, "incoming connection from %s (id %d)\n", inet_ntoa(socketAddress.sin_addr), newSocket);
+		if (callback) {
+			callback(server, i, socketAddress);
+		}
+		//fprintf(stdout, "incoming connection from %s (id %d)\n", inet_ntoa(socketAddress.sin_addr), newSocket);
 	}
-	return 0;
+	return SSTATE_NORMAL;
 }
 
-int checkMessages(serverSession* server) {
+serverState checkMessages(serverSession* server, packetRecievedCallback recCallback, disconnectCallback dcCallback) {
 	static char buffer[513];
 	for (int i = 0; i < server->maxClients; ++i) {
 		if (FD_ISSET(server->clients[i], &server->fdSet)) {
 			int bytesRead = read(server->clients[i], buffer, 512);
 			if (!bytesRead) {
-				fprintf(stdout, "client id %d disconnected\n", server->clients[i]);
+				if (dcCallback) {
+					dcCallback(server, i);
+				}
 				close(server->clients[i]);
 				server->clients[i] = 0;
 			} else {
 				buffer[bytesRead] = '\0';
-				fprintf(stdout, "client id %d sent message of length %d: %s\n", server->clients[i], bytesRead, buffer);
+				if (recCallback) {
+					recCallback(server, i, buffer, bytesRead);
+				}
 			}
 		}
 	}
-	return 0;
+	return SSTATE_NORMAL;
 }
 
-int processActivity(serverSession* server) {
-	if (updateFDSet(server)) {
-		fprintf(stderr, "error: idk man, but you fucked up something");
-		return -1;
+serverState processActivity(serverSession* server, newConnectionCallback ncCallback, packetRecievedCallback npCallback, disconnectCallback dcCallback) {
+	serverState ret;
+	ret = updateFDSet(server);
+	if (ret) {
+		return ret;
 	}
-	checkRequests(server);
-	checkMessages(server);
+	ret = checkRequests(server, ncCallback);
+	if (ret) {
+		return ret;
+	}
+	ret = checkMessages(server, npCallback, dcCallback);
+	return ret;
 }
 
-int processActivityTimed(serverSession* server, int seconds, int microseconds) {
+serverState processActivityTimed(serverSession* server, int seconds, int microseconds, newConnectionCallback ncCallback, packetRecievedCallback npCallback, disconnectCallback dcCallback) {
 	struct timeval period;
+	serverState ret;
 	period.tv_sec = seconds;
 	period.tv_usec = microseconds;
 	
 	while (period.tv_sec + period.tv_usec > 0) {
-		if (updateFDSetTimed(server, &period)) {
-			fprintf(stderr, "error: idk man, but you fucked up something");
-			return -1;
+		ret = updateFDSetTimed(server, &period);
+		if (ret) {
+			return ret;
 		}
-		checkRequests(server);
-		checkMessages(server);
+		ret = checkRequests(server, ncCallback);
+		if (ret) {
+			return ret;
+		}
+		ret = checkMessages(server, npCallback, dcCallback);
+		if (ret) {
+			return ret;
+		}
 	}
-		
+	return SSTATE_NORMAL;
 }
 
 void sendString(int socket, char* message) {
@@ -186,7 +234,10 @@ int main(int argc, char** argv) {
 	int interval = 5;
 
 	while (1) {
-		processActivityTimed(&server, 3, 0);
+		if (processActivityTimed(&server, 3, 0, 0, 0, 0)) {
+			fprintf(stderr, "error: exiting\n");
+			return 1;
+		}
 		--interval;
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			if (server.clients[i]) {
