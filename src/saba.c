@@ -5,24 +5,61 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 
 //server
 
 #define MAX_CLIENTS 10
 
-int updateFDSet(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	FD_ZERO(fdSet);
+typedef struct serverSession {
+	fd_set fdSet;
+	int server;
+	int* clients;
+	int maxClients;
+	void* sessionData;
+} serverSession;
 
-	FD_SET(serverFD, fdSet);
+int createServer(serverSession* server, int capacity, int port) {
+	server->server = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (server->server < 0) {
+		return 1;
+	}
 
-	int maxSocket = serverFD;
+	struct sockaddr_in sad;
+	memset(&sad, 0, sizeof(sad));
+	sad.sin_family = AF_INET;
+	sad.sin_port = htons(port);
+	sad.sin_addr.s_addr = INADDR_ANY;
+	
+	int optval = 1;	
+	setsockopt(server->server, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+
+	if (bind(server->server, (struct sockaddr*)&sad, sizeof(sad)) < 0) {
+		return 2;
+	}
+
+	server->clients = calloc(capacity, sizeof(int));
+	server->maxClients = capacity;
+
+	if (listen(server->server, 15) < 0) {
+		return 3;
+	}
+	return 0;
+}
+
+int updateFDSet(serverSession* server) {
+	FD_ZERO(&server->fdSet);
+
+	FD_SET(server->server, &server->fdSet);
+
+	int maxSocket = server->server;
 		
-	for (int i = 0; i < maxClients; ++i) {
-		if (clientSockets[i] > 0) {
-			FD_SET(clientSockets[i], fdSet);
+	for (int i = 0; i < server->maxClients; ++i) {
+		if (server->clients[i] > 0) {
+			FD_SET(server->clients[i], &server->fdSet);
 		}
-		if (clientSockets[i] > maxSocket) {
-			maxSocket = clientSockets[i];
+		if (server->clients[i] > maxSocket) {
+			maxSocket = server->clients[i];
 		}
 	}
 
@@ -30,60 +67,106 @@ int updateFDSet(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients)
 	memset(&timeoutPeriod, 0, sizeof(timeoutPeriod));
 	timeoutPeriod.tv_sec = 3;
 
-	if (select(maxSocket + 1, fdSet, NULL, NULL, &timeoutPeriod) < 0) {
+	if (select(maxSocket + 1, &server->fdSet, NULL, NULL, &timeoutPeriod) < 0) {
 		fprintf(stderr, "error: failed activity?\n");
 		return 1;
 	}
+
+	printf("debug: %d seconds and %d microseconds\n", timeoutPeriod.tv_sec, timeoutPeriod.tv_usec);
+	printf("debug: about %f seconds total\n", (float) timeoutPeriod.tv_sec + ((float)(timeoutPeriod.tv_usec) / 1000000.0));
+
 	return 0;
 }
 
-int checkRequests(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	if (FD_ISSET(serverFD, fdSet)) {
+int updateFDSetTimed(serverSession* server, struct timeval* timeoutPeriod) {
+	FD_ZERO(&server->fdSet);
+
+	FD_SET(server->server, &server->fdSet);
+
+	int maxSocket = server->server;
+		
+	for (int i = 0; i < server->maxClients; ++i) {
+		if (server->clients[i] > 0) {
+			FD_SET(server->clients[i], &server->fdSet);
+		}
+		if (server->clients[i] > maxSocket) {
+			maxSocket = server->clients[i];
+		}
+	}
+
+	if (select(maxSocket + 1, &server->fdSet, NULL, NULL, timeoutPeriod) < 0) {
+		fprintf(stderr, "error: failed activity?\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+int checkRequests(serverSession* server) {
+	if (FD_ISSET(server->server, &server->fdSet)) {
 		struct sockaddr_in socketAddress;
 		socklen_t addressSize = sizeof(socketAddress);
 
-		static char* greetingMessage = "d.nnr cbkae.p\n\r";
-
-		int newSocket = accept(serverFD, (struct sockaddr*)&socketAddress, &addressSize);
+		int newSocket = accept(server->server, (struct sockaddr*)&socketAddress, &addressSize);
 		if (newSocket < 0) {
 			fprintf(stderr, "failed to accept request");
 			return -1;
 		}
 
-		for (int i = 0; i < maxClients; ++i) {
-			if (clientSockets[i] == 0) {
-				clientSockets[i] = newSocket;
+		for (int i = 0; i < server->maxClients; ++i) {
+			if (server->clients[i] == 0) {
+				server->clients[i] = newSocket;
 				break;
 			}
 		}
 
 		/*handle the connection*/
 		fprintf(stdout, "incoming connection from %s (id %d)\n", inet_ntoa(socketAddress.sin_addr), newSocket);
-		int sendval = send(newSocket, greetingMessage, strlen(greetingMessage), 0);
-		if (sendval != strlen(greetingMessage)) {
-			fprintf(stdout, "partial or failed message send, error %d", sendval);
-			return -2;
+	}
+	return 0;
+}
+
+int checkMessages(serverSession* server) {
+	static char buffer[513];
+	for (int i = 0; i < server->maxClients; ++i) {
+		if (FD_ISSET(server->clients[i], &server->fdSet)) {
+			int bytesRead = read(server->clients[i], buffer, 512);
+			if (!bytesRead) {
+				fprintf(stdout, "client id %d disconnected\n", server->clients[i]);
+				close(server->clients[i]);
+				server->clients[i] = 0;
+			} else {
+				buffer[bytesRead] = '\0';
+				fprintf(stdout, "client id %d sent message of length %d: %s\n", server->clients[i], bytesRead, buffer);
+			}
 		}
 	}
 	return 0;
 }
 
-int checkMessages(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	static char buffer[513];
-	for (int i = 0; i < maxClients; ++i) {
-		if (FD_ISSET(clientSockets[i], fdSet)) {
-			int bytesRead = read(clientSockets[i], buffer, 512);
-			if (!bytesRead) {
-				fprintf(stdout, "client id %d disconnected\n", clientSockets[i]);
-				close(clientSockets[i]);
-				clientSockets[i] = 0;
-			} else {
-				buffer[bytesRead] = '\0';
-				fprintf(stdout, "client id %d sent message of length %d: %s\n", clientSockets[i], bytesRead, buffer);
-			}
-		}
+int processActivity(serverSession* server) {
+	if (updateFDSet(server)) {
+		fprintf(stderr, "error: idk man, but you fucked up something");
+		return -1;
 	}
-	return 0;
+	checkRequests(server);
+	checkMessages(server);
+}
+
+int processActivityTimed(serverSession* server, int seconds, int microseconds) {
+	struct timeval period;
+	period.tv_sec = seconds;
+	period.tv_usec = microseconds;
+	
+	while (period.tv_sec + period.tv_usec > 0) {
+		if (updateFDSetTimed(server, &period)) {
+			fprintf(stderr, "error: idk man, but you fucked up something");
+			return -1;
+		}
+		checkRequests(server);
+		checkMessages(server);
+	}
+		
 }
 
 void sendString(int socket, char* message) {
@@ -94,62 +177,24 @@ void sendString(int socket, char* message) {
 }
 
 int main(int argc, char** argv) {
+	serverSession server;
 
-	char buffer[513];
+	createServer(&server, MAX_CLIENTS, PORT);
 
-	int serverFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (serverFD < 0) {
-		fprintf(stderr, "error: failed to create socket\n");
-		return 1;
-	}
-	printf("socket created!\n");
-
-	struct sockaddr_in sad;
-	memset(&sad, 0, sizeof(sad));
-	sad.sin_family = AF_INET;
-	sad.sin_port = htons(PORT);
-	sad.sin_addr.s_addr = INADDR_ANY;
-	
-	int optval = 1;	
-	setsockopt(serverFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
-
-	if (bind(serverFD, (struct sockaddr*)&sad, sizeof(sad)) < 0) {
-		fprintf(stderr, "error: socket failed to bind\n");
-		return 1;
-	}
-
-	fd_set readFD;
-	int clientSockets[MAX_CLIENTS];
-	for (int i = 0; i < MAX_CLIENTS; ++i) {
-		clientSockets[i] = 0;
-	}
-	if (listen(serverFD, 15) < 0) {
-		fprintf(stderr, "error: failed listen, get ears m8\n");
-		return 1;
-	}
 	printf("server starting\n");
 
 	int interval = 5;
-	
-	char* messageA = "yo!";
-
-	char* messageB = "quit";
 
 	while (1) {
-		if (updateFDSet(&readFD, serverFD, clientSockets, MAX_CLIENTS)) {
-			fprintf(stderr, "error: idk man, but you fucked up something");
-			break;
-		}
-		checkRequests(&readFD, serverFD, clientSockets, MAX_CLIENTS);
-		checkMessages(&readFD, serverFD, clientSockets, MAX_CLIENTS);
+		processActivityTimed(&server, 3, 0);
 		--interval;
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
-			if (clientSockets[i]) {
-				fprintf(stdout, "debug: sending to %d\n", clientSockets[i]);
+			if (server.clients[i]) {
+				fprintf(stdout, "debug: sending to %d interval %d\n", server.clients[i], interval);
 				if (interval > 0) {
-					sendString(clientSockets[i], "yo!");
+					sendString(server.clients[i], "yo!");
 				} else {
-					sendString(clientSockets[i], "quit");
+					sendString(server.clients[i], "quit");
 				}
 			}
 		}
@@ -160,3 +205,9 @@ int main(int argc, char** argv) {
 	
 	return 0;
 }
+
+/* TODO
+ *
+ * callbacks
+ * better error handling
+ */
