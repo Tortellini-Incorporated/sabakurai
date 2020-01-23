@@ -1,155 +1,107 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
+#include "server.h"
 
 //server
 
 #define MAX_CLIENTS 10
 
-int updateFDSet(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	FD_ZERO(fdSet);
+typedef struct Player {
+	char* name;
+	int progress;
+} Player;
 
-	FD_SET(serverFD, fdSet);
+typedef struct GameData {
+	Player players[MAX_CLIENTS];
+	int numPlayers;
+	int numReady;
+	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
+} GameData;
 
-	int maxSocket = serverFD;
-		
-	for (int i = 0; i < maxClients; ++i) {
-		if (clientSockets[i] > 0) {
-			FD_SET(clientSockets[i], fdSet);
+ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
+	GameData* session = (GameData*) server->sessionData;
+	printf("debug: parsing message from [%s], message [%s]", session->players[client].name, data);
+	while (length > 0) {
+		if (session->players[client].name == 0) {//Player announcing name
+			int nameLength = *((int*) data) & 0xFF;
+			session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
+			memcpy(session->players[client].name, ((char*)data) + 1, nameLength * sizeof(char));
+			session->players[client].name[nameLength] = 0;
+			printf("debug: [%s] (index %d) announced name (message length: %d, itta %d)\n", session->players[client].name, client, length, nameLength);
+			length -= nameLength + 1;
+			data = ((char*) data) - (nameLength + 1);
+			++session->numPlayers;
+			continue;
 		}
-		if (clientSockets[i] > maxSocket) {
-			maxSocket = clientSockets[i];
+		if (session->currentState) {
+			fprintf(stderr, "error: invalid game state\n");
+			data = ((char*) data) - 1;
+			--length;
+		} else {
+			char msg = *(char*) data;
+			if (msg == 'r') {
+				printf("debug: %s is now ready\n", session->players[client].name);
+				session->players[client].progress = 0;
+				++session->numReady;
+			} else if (msg = 'u') {
+				printf("debug: %s is no longer ready\n", session->players[client].name);
+				session->players[client].progress = -1;
+				--session->numReady;
+			}
+			data = ((char*) data) - 1;
+			--length;
 		}
 	}
-
-	struct timeval timeoutPeriod;
-	memset(&timeoutPeriod, 0, sizeof(timeoutPeriod));
-	timeoutPeriod.tv_sec = 3;
-
-	if (select(maxSocket + 1, fdSet, NULL, NULL, &timeoutPeriod) < 0) {
-		fprintf(stderr, "error: failed activity?\n");
-		return 1;
-	}
-	return 0;
+	printf("debug: done parsing message\n");
+	return SSTATE_NORMAL;
 }
 
-int checkRequests(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	if (FD_ISSET(serverFD, fdSet)) {
-		struct sockaddr_in socketAddress;
-		socklen_t addressSize = sizeof(socketAddress);
+ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_in adr) {
+	printf("debug: new connection %d\n", client);
+	GameData* session = (GameData*) server->sessionData;
+	session->players[client].name = 0;
+	session->players[client].progress = -1;
+}
 
-		static char* greetingMessage = "d.nnr cbkae.p\n\r";
+ServerState disconnectCB(ServerSession* server, int client) {
+	GameData* session = (GameData*) server->sessionData;
+	printf("debug: [%s] disconnected\n", session->players[client]);
+	if (session->currentState) {
 
-		int newSocket = accept(serverFD, (struct sockaddr*)&socketAddress, &addressSize);
-		if (newSocket < 0) {
-			fprintf(stderr, "failed to accept request");
-			return -1;
-		}
-
-		for (int i = 0; i < maxClients; ++i) {
-			if (clientSockets[i] == 0) {
-				clientSockets[i] = newSocket;
-				break;
+	} else {
+		if (session->players[client].name) {
+			--session->numPlayers;
+			if (!session->players[client].progress) {
+				--session->numReady;
 			}
 		}
-
-		/*handle the connection*/
-		fprintf(stdout, "incoming connection from %s (id %d)\n", inet_ntoa(socketAddress.sin_addr), newSocket);
-		int sendval = send(newSocket, greetingMessage, strlen(greetingMessage), 0);
-		if (sendval != strlen(greetingMessage)) {
-			fprintf(stdout, "partial or failed message send, error %d", sendval);
-			return -2;
-		}
-	}
-	return 0;
-}
-
-int checkMessages(fd_set* fdSet, int serverFD, int* clientSockets, int maxClients) {
-	static char buffer[513];
-	for (int i = 0; i < maxClients; ++i) {
-		if (FD_ISSET(clientSockets[i], fdSet)) {
-			int bytesRead = read(clientSockets[i], buffer, 512);
-			if (!bytesRead) {
-				fprintf(stdout, "client id %d disconnected\n", clientSockets[i]);
-				close(clientSockets[i]);
-				clientSockets[i] = 0;
-			} else {
-				buffer[bytesRead] = '\0';
-				fprintf(stdout, "client id %d sent message of length %d: %s\n", clientSockets[i], bytesRead, buffer);
-			}
-		}
-	}
-	return 0;
-}
-
-void sendString(int socket, char* message) {
-	int bytesSent = send(socket, message, strlen(message), 0);
-	if (bytesSent != strlen(message)) {
-		fprintf(stderr, "error: sent %d/%d bytes", bytesSent, strlen(message));
 	}
 }
 
 int main(int argc, char** argv) {
+	ServerSession server;
+	GameData sessionData;
 
-	char buffer[513];
+	server.sessionData = &sessionData;
+	memset(&sessionData, 0, sizeof(sessionData));
 
-	int serverFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (serverFD < 0) {
-		fprintf(stderr, "error: failed to create socket\n");
-		return 1;
-	}
-	printf("socket created!\n");
+	createServer(&server, MAX_CLIENTS, PORT);
 
-	struct sockaddr_in sad;
-	memset(&sad, 0, sizeof(sad));
-	sad.sin_family = AF_INET;
-	sad.sin_port = htons(PORT);
-	sad.sin_addr.s_addr = INADDR_ANY;
-	
-	int optval = 1;	
-	setsockopt(serverFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
-
-	if (bind(serverFD, (struct sockaddr*)&sad, sizeof(sad)) < 0) {
-		fprintf(stderr, "error: socket failed to bind\n");
-		return 1;
-	}
-
-	fd_set readFD;
-	int clientSockets[MAX_CLIENTS];
-	for (int i = 0; i < MAX_CLIENTS; ++i) {
-		clientSockets[i] = 0;
-	}
-	if (listen(serverFD, 15) < 0) {
-		fprintf(stderr, "error: failed listen, get ears m8\n");
-		return 1;
-	}
 	printf("server starting\n");
 
 	int interval = 5;
-	
-	char* messageA = "yo!";
-
-	char* messageB = "quit";
 
 	while (1) {
-		if (updateFDSet(&readFD, serverFD, clientSockets, MAX_CLIENTS)) {
-			fprintf(stderr, "error: idk man, but you fucked up something");
-			break;
+		if (processActivityTimed(&server, 3, 0, newConnectionCB, packetRecievedCB, disconnectCB)) {
+			fprintf(stderr, "error: exiting\n");
+			return 1;
 		}
-		checkRequests(&readFD, serverFD, clientSockets, MAX_CLIENTS);
-		checkMessages(&readFD, serverFD, clientSockets, MAX_CLIENTS);
 		--interval;
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
-			if (clientSockets[i]) {
-				fprintf(stdout, "debug: sending to %d\n", clientSockets[i]);
+			if (server.clients[i]) {
+				fprintf(stdout, "debug: sending to %d interval %d\n", server.clients[i], interval);
 				if (interval > 0) {
-					sendString(clientSockets[i], "yo!");
+					sendString(server.clients[i], "yo!");
 				} else {
-					sendString(clientSockets[i], "quit");
+					sendString(server.clients[i], "quit");
 				}
 			}
 		}
@@ -157,6 +109,12 @@ int main(int argc, char** argv) {
 			interval = 5;
 		}
 	}
-	
+
 	return 0;
 }
+
+/* TODO
+ *
+ * callbacks
+ * better error handling
+ */
