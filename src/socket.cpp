@@ -32,20 +32,34 @@
 
 Socket::Socket(int domain, int type, int protocol) :
 	socket(::socket(domain, type, protocol)),
-	addressInfo({}),
+	mAddressInfo({}),
 	connected(false),
-	message() {
+	message(),
+	mFlags(),
+	mWidth(NONE),
+	blocking(true) {
 	if (socket == -1) {
 		throw std::string("Failed to create socket");
 	}
 }
 
-auto Socket::setAddressInfo(const sockaddr_in & addressInfo) -> void {
-	this->addressInfo = addressInfo;
+auto Socket::addressInfo(const sockaddr_in & addressInfo) -> Socket& {
+	mAddressInfo = addressInfo;
+	return *this;
+}
+
+auto Socket::flags(Flags flags) -> Socket& {
+	mFlags = flags;
+	return *this;
+}
+
+auto Socket::width(Width width) -> Socket& {
+	mWidth = width;
+	return *this;
 }
 
 auto Socket::connect() -> void {
-	if (::connect(socket, (sockaddr *) &addressInfo, sizeof(sockaddr_in)) == -1) {
+	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1) {
 		throw std::string("Failed to connect to server");
 	}
 	connected = true;
@@ -54,6 +68,27 @@ auto Socket::connect() -> void {
 auto Socket::close() -> void {
 	::close(socket);
 	connected = false;
+}
+
+auto Socket::operator>>(std::string & string) -> Socket& {
+	auto vec = std::vector<char>();
+	*this >> vec;
+	vec.push_back('\0');
+	string = &vec[0];
+	return *this;
+}
+
+auto Socket::operator>>(std::vector<char> & vector) -> Socket& {
+	char buffer[4];
+	recv(socket, buffer, mWidth + 1, mFlags.flags);
+	auto length = uint32_t( buffer[0] );
+	for (auto i = 1; i <= mWidth; ++i) {
+		length <<= 8;
+		length |= buffer[i];
+	}
+	vector.resize(length);
+	recv(socket, &vector[0], length, mFlags.flags);
+	return *this;
 }
 
 Socket::~Socket() {

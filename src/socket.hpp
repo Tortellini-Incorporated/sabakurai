@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <sstream>
 
 class Socket {
@@ -44,11 +45,12 @@ class Socket {
 
 	private:
 		int socket;
-		sockaddr_in addressInfo;
+		sockaddr_in mAddressInfo;
 		bool connected;
 		std::stringstream message;
-		Flags flags;
-		Width width;
+		Flags mFlags;
+		Width mWidth;
+		bool blocking;
 
 	public:
 		Socket(int domain, int type, int protocol);
@@ -56,7 +58,9 @@ class Socket {
 
 		auto operator=(const Socket & socket) -> Socket& = delete;
 
-		auto setAddressInfo(const sockaddr_in & addressInfo) -> void;
+		auto addressInfo(const sockaddr_in & addressInfo) -> Socket&;
+		auto flags(Flags flags) -> Socket&;
+		auto width(Width width) -> Socket&;
 		auto connect() -> void;
 		auto close() -> void;
 
@@ -66,33 +70,27 @@ class Socket {
 			return *this;
 		}
 
-		auto operator<<(Width width) -> Socket& {
-			this->width = width;
-			return *this;
-		}
-
-		auto operator<<(Flags flags) -> Socket& {
-			this->flags = flags;
-			return *this;
-		}
-
 		auto operator<<(Flush flush) -> Socket& {
 			if (flush == FLUSH_LINE) {
 				message << '\n';
 			}
 			auto messageString = message.str();
-			auto index  = -1;
+			auto index  = 0;
 			auto length = messageString.size();
-			switch (width) {
-				case U32: messageString.insert(index, 1, uint8_t((length >> ((width - index) * 8)) & 0xFF));
-				          messageString.insert(index, 1, uint8_t((length >> ((width - index) * 8)) & 0xFF));
-				case U16: messageString.insert(index, 1, uint8_t((length >> ((width - index) * 8)) & 0xFF));
-				case U8:  messageString.insert(index, 1, uint8_t((length >>  (width - index)     ) & 0xFF));
+			switch (mWidth) {
+				case U32: messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
+				          messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
+				case U16: messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
+				case U8:  messageString.insert(index, 1, uint8_t((length >>  (mWidth - index)     ) & 0xFF));
 			}
-			send(socket, messageString.c_str(), messageString.size(), flags.flags);
+			send(socket, messageString.c_str(), messageString.size(), mFlags.flags);
 			message.str(std::string());
 			return *this;
 		}
+
+		auto operator>>(std::string & string) -> Socket&;
+		auto operator>>(std::vector<char> & vector) -> Socket&;
+		auto operator>>(char & c) -> Socket&;
 
 		~Socket();
 };

@@ -29,23 +29,28 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 		Socket socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 		std::cout << "Socket created successfully" << std::endl;
 
-		socket.setAddressInfo({
+		std::cout << "Trying to connect to server..." << std::endl;
+		socket.addressInfo({
 			AF_INET,
 			htons(PORT),
 			inet_addr(ip.c_str())
-		});
-		std::cout << "Trying to connect to server..." << std::endl;
-		socket.connect();
+		}).connect();
 		std::cout << "Connected to server at ip '" << ip << '\'' << std::endl;
 
 		std::cout << "Sending user info..." << std::endl;
-		socket << Socket::U8 << username << Socket::FLUSH;
+		socket.width(Socket::U8) << username << Socket::FLUSH;
+
+		auto message = std::string();
+		socket >> message;
+		std::cout << message << std::endl;
 
 		std::cout << "Readying up..." << std::endl;
-		socket << Socket::NONE << 'r' << Socket::FLUSH;
+		socket.width(Socket::NONE) << 'r' << Socket::FLUSH;
 
 		std::cout << "Unreadying up..." << std::endl;
-		socket << Socket::NONE << 'u' << Socket::FLUSH;
+		socket << 'u' << Socket::FLUSH;
+
+
 	} catch (const std::string & message) {
 		std::cerr << message << std::endl;
 		return -1;
