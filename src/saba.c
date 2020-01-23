@@ -224,8 +224,75 @@ void sendString(int socket, char* message) {
 	}
 }
 
+typedef struct player {
+	char* name;
+	int progress;
+} player;
+
+typedef struct gameData {
+	player players[MAX_CLIENTS];
+	int numPlayers;
+	int numReady;
+	int currentState;// 0 = waiting for players to be ready, 1 = ingame
+} gameData;
+
+serverState packetRecievedCB(serverSession* server, int client, void* data, int length) {
+	gameData* session = (gameData*) server->sessionData;
+	while (length > 0) {
+		if (session->players[client].name == 0) {//player announcing name
+			int nameLength = *((int*) data) & 0xFF;
+			session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
+			memcpy(session->players[client].name, ((char*)data) + 1, nameLength * sizeof(char));
+			session->players[client].name[nameLength] = 0;
+			printf("debug: %s (index %d) announced name (message length: %d, itta %d)\n", session->players[client].name, client, length, nameLength);
+			length -= nameLength + 1;
+			++session->numPlayers;
+			continue;
+		}
+		if (session->currentState) {
+			
+		} else {
+			char msg = *(char*) data;
+			if (msg == 'r') {
+				printf("debug: %s is now ready\n", session->players[client].name);
+				session->players[client].progress = 0;
+				++session->numReady;
+			} else if (msg = 'u') {
+				printf("debug: %s is no longer ready\n", session->players[client].name);
+				session->players[client].progress = -1;
+				--session->numReady;
+			}
+			--length;
+		}
+	}
+	return SSTATE_NORMAL;
+}
+
+serverState newConnectionCB(serverSession* server, int client, struct sockaddr_in adr) {
+	printf("debug: new connection %d\n", client);
+	gameData* session = (gameData*) server->sessionData;
+	session->players[client].name = 0;
+	session->players[client].progress = -1;
+}
+
+serverState disconnectCB(serverSession* server, int client) {
+	gameData* session = (gameData*) server->sessionData;
+	if (session->currentState) {
+		
+	} else {
+		if (session->players[client].name) {
+			--session->numPlayers;
+			if (!session->players[client].progress) {
+				--session->numReady;
+			}
+		}
+	}
+}
+
 int main(int argc, char** argv) {
 	serverSession server;
+
+	server.sessionData = calloc(MAX_CLIENTS, sizeof(player));
 
 	createServer(&server, MAX_CLIENTS, PORT);
 
@@ -234,7 +301,7 @@ int main(int argc, char** argv) {
 	int interval = 5;
 
 	while (1) {
-		if (processActivityTimed(&server, 3, 0, 0, 0, 0)) {
+		if (processActivityTimed(&server, 3, 0, newConnectionCB, packetRecievedCB, disconnectCB)) {
 			fprintf(stderr, "error: exiting\n");
 			return 1;
 		}
