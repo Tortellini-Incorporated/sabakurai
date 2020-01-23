@@ -6,43 +6,27 @@
 		#define _WIN32_WINNT 0x0501
 	#endif
 
-	typedef SOCKET Socket;
+	#include <winsock2.h>
 
-	int sockInit() {
-		WSADATA wsaData;
-		return WSAStartup(MAKEWORD(1, 1), &wasData);
-	}
+	typedef SOCKET CSocket;
 
-	int sockQuit() {
-		return WSACleanup();
-	}
+	extern int initSocket();
+	extern int quitSocket();
 
-	int closeSocket(Socket socket) {
-		int status = shutdown(socket, SD_BOTH);
-		if (status == 0) {
-			status = closesocket(socket);
-		}
-		return status;
-	}
+	extern int closeSocket(CSocket socket);
 #else
 	#include <sys/socket.h>
 	#include <arpa/inet.h>
 	#include <unistd.h>
 
-	typedef int Socket;
+	typedef int CSocket;
 
 	#define INVALID_SOCKET -1
 
-	int sockInit() { return 0; }
-	int sockQuit() { return 0; }
+	extern int initSocket();
+	extern int quitSocket();
 
-	int closeSocket(Socket socket) {
-		int status = shutdown(socket, SHUT_RDWR);
-		if (status == 0) {
-			status = close(socket);
-		}
-		return status;
-	}
+	extern int closeSocket(CSocket socket);
 #endif
 
 #endif // SABAKURAI_SOCKET

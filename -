@@ -1,0 +1,58 @@
+#include "socket.hpp"
+
+#ifdef _WIN32
+	int initSocket() {
+		WSADATA wsaData;
+		return WSAStartup(MAKEWORD(1, 1), &wasData);
+	}
+
+	int quitSocket() {
+		return WSACleanup();
+	}
+
+	int closeSocket(CSocket socket) {
+		int status = shutdown(socket, SD_BOTH);
+		if (status == 0) {
+			status = closesocket(socket);
+		}
+		return status;
+	}
+#else
+	int initSocket() { return 0; }
+	int quitSocket() { return 0; }
+
+	int closeSocket(CSocket socket) {
+		int status = shutdown(socket, SHUT_RDWR);
+		if (status == 0) {
+			status = close(socket);
+		}
+		return status;
+	}
+#endif
+
+Socket::Socket(int domain, int type, int protocol) :
+	sock(socket(domain, type, protocol)),
+	addressInfo({}),
+	connected(false) {
+		if (sock == -1) {
+			throw std::string("Failed to create socket");
+		}
+	}
+
+auto Socket::setAddressInfo(const sockaddr_in & addressInfo) {
+	this->addressInfo = addressInfo;
+}
+
+auto Socket::connect() {
+	if (connect(sock, (sockaddr *) &addressInfo, sizeof(sockaddr_in)) == -1) {
+		throw std::string("Failed to connect to server");
+	}
+}
+
+auto Socket::close() {
+	close(sock);
+}
+
+Socket::~Socket() {
+	close();
+}
