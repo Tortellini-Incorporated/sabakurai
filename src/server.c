@@ -169,6 +169,21 @@ ServerState processActivityTimed(ServerSession* server, int seconds, int microse
 void sendString(int socket, char* message) {
 	int bytesSent = send(socket, message, strlen(message), 0);
 	if (bytesSent != strlen(message)) {
-		fprintf(stderr, "error: sent %d/%d bytes", bytesSent, (int) strlen(message));
+		fprintf(stderr, "error: sent %d/%d bytes\n", bytesSent, (int) strlen(message));
+	}
+}
+
+void sendPacket(int socket, void* message, int size) { 
+	int bytesSent = send(socket, message, size, 0);
+	if (bytesSent != size) {
+		fprintf(stderr, "error: sent %d/%d bytes\n", bytesSent, size);
+	}
+}
+
+void broadcastPacket(ServerSession* server, void* message, int size) {
+	for (int i = 0; i < server->maxClients; ++i) {
+		if (server->clients[i]) {
+			sendPacket(server->clients[i], message, size);
+		}
 	}
 }

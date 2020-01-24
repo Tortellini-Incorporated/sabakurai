@@ -70,4 +70,8 @@ ServerState processActivityTimed(ServerSession*, int seconds, int microseconds, 
 
 void sendString(int socket, char* message);
 
+void sendPacket(int socket, void* message, int size);
+
+void broadcastPacket(ServerSession* server, void* message, int size);
+
 #endif //SABA_SERVER

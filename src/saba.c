@@ -18,14 +18,23 @@ typedef struct GameData {
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: parsing message from [%s], message [%s]", session->players[client].name, data);
+	printf("debug: parsing message from [%s], message [%s]\n", session->players[client].name, data);
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			int nameLength = *((int*) data) & 0xFF;
 			session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
 			memcpy(session->players[client].name, ((char*)data) + 1, nameLength * sizeof(char));
 			session->players[client].name[nameLength] = 0;
-			printf("debug: [%s] (index %d) announced name (message length: %d, itta %d)\n", session->players[client].name, client, length, nameLength);
+			printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
+
+			char* msgData = malloc(2 + nameLength);
+			msgData[0] = 0;
+			msgData[1] = client;
+			msgData[2] = (char) nameLength;
+			memcpy(msgData + 3, session->players[client].name, nameLength);
+			broadcastPacket(server, msgData, 3 + nameLength);
+			free(msgData);
+
 			length -= nameLength + 1;
 			data = ((char*) data) - (nameLength + 1);
 			++session->numPlayers;
@@ -37,12 +46,20 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			--length;
 		} else {
 			char msg = *(char*) data;
-			if (msg == 'r') {
+			if (msg == 'r' && !session->players[client].progress) {
 				printf("debug: %s is now ready\n", session->players[client].name);
+				char sdata[2];
+				sdata[0] = 1;
+				sdata[1] = client;
+				broadcastPacket(server, sdata, 2);
 				session->players[client].progress = 0;
 				++session->numReady;
-			} else if (msg = 'u') {
+			} else if (msg == 'u' && session->players[client].progress) {
 				printf("debug: %s is no longer ready\n", session->players[client].name);
+				char sdata[2];
+				sdata[0] = 1;
+				sdata[1] = client;
+				broadcastPacket(server, sdata, 2);
 				session->players[client].progress = -1;
 				--session->numReady;
 			}
@@ -50,7 +67,6 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			--length;
 		}
 	}
-	printf("debug: done parsing message\n");
 	return SSTATE_NORMAL;
 }
 
@@ -93,20 +109,6 @@ int main(int argc, char** argv) {
 		if (processActivityTimed(&server, 3, 0, newConnectionCB, packetRecievedCB, disconnectCB)) {
 			fprintf(stderr, "error: exiting\n");
 			return 1;
-		}
-		--interval;
-		for (int i = 0; i < MAX_CLIENTS; ++i) {
-			if (server.clients[i]) {
-				fprintf(stdout, "debug: sending to %d interval %d\n", server.clients[i], interval);
-				if (interval > 0) {
-					sendString(server.clients[i], "yo!");
-				} else {
-					sendString(server.clients[i], "quit");
-				}
-			}
-		}
-		if (interval == 0) {
-			interval = 5;
 		}
 	}
 
