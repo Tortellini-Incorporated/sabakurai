@@ -1,13 +1,16 @@
 PORT=4730
 
 kurai: out src/kurai.cpp src/socket.cpp
-	g++ -lncurses -DPORT=$(PORT) src/socket.cpp src/kurai.cpp -o out/kurai
+	g++ -DPORT=$(PORT) src/socket.cpp src/kurai.cpp -lncurses -o out/kurai
 
 okurai: out src/metestkurai.c
-	gcc -lncurses -DPORT=$(PORT) src/metestkurai.c -o out/kurai
+	gcc -DPORT=$(PORT) src/metestkurai.c -lncurses -o out/kurai
 
 saba: out src/saba.c
 	gcc -DPORT=$(PORT) src/saba.c src/server.c -o out/saba
+
+curses: out src/curses.cpp src/window.cpp
+	g++ src/window.cpp src/curses.cpp -lncurses -o out/curses
 
 out:
 	mkdir -p out
