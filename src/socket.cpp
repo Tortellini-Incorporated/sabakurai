@@ -1,5 +1,7 @@
 #include "socket.hpp"
 
+#include <iostream>
+
 #ifdef _WIN32
 	int initSocket() {
 		WSADATA wsaData;
@@ -70,6 +72,19 @@ auto Socket::close() -> void {
 	connected = false;
 }
 
+auto Socket::hasData() -> bool {
+	fd_set input;
+	FD_ZERO(&input);
+	FD_SET(socket, &input);
+	return FD_ISSET(socket, &input);
+}
+
+auto Socket::read() -> uint8_t {
+	char c;
+	recv(socket, &c, 1, mFlags.flags);
+	return c;
+}
+
 auto Socket::operator>>(std::string & string) -> Socket& {
 	auto vec = std::vector<char>();
 	*this >> vec;
@@ -86,6 +101,7 @@ auto Socket::operator>>(std::vector<char> & vector) -> Socket& {
 		length <<= 8;
 		length |= buffer[i];
 	}
+	std::cout << length << std::endl;
 	vector.resize(length);
 	recv(socket, &vector[0], length, mFlags.flags);
 	return *this;

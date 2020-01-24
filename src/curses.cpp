@@ -22,7 +22,7 @@ int32_t main(int32_t argc, char ** argv) {
 		      .line_horz(window.width() - 2, ACS_HLINE)
 			  .move(window.width() - 1, 1 + i)
 		      .put(ACS_RTEE)
-			  .refresh();
+		      .refresh();
 	}
 
 	getch();

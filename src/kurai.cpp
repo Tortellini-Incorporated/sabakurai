@@ -40,17 +40,50 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 		std::cout << "Sending user info..." << std::endl;
 		socket.width(Socket::U8) << username << Socket::FLUSH;
 
-		auto message = std::string();
-		socket >> message;
-		std::cout << message << std::endl;
-
-		std::cout << "Readying up..." << std::endl;
-		socket.width(Socket::NONE) << 'r' << Socket::FLUSH;
-
-		std::cout << "Unreadying up..." << std::endl;
-		socket << 'u' << Socket::FLUSH;
-
-
+		bool quit = false;
+		while (!quit) {
+			fd_set input;
+			FD_ZERO(&input);
+			FD_SET(STDIN_FILENO, &input);
+			if (FD_ISSET(STDIN_FILENO, &input)) {
+				auto in = std::string();
+				std::cin >> in;
+				if (in.compare("ready") == 0) {
+					socket.width(Socket::NONE) << 'r' << Socket::FLUSH;
+				} else if (in.compare("unready") == 0) {
+					socket.width(Socket::NONE) << 'u' << Socket::FLUSH;
+				} else if (in.compare("quit") == 0) {
+					quit = true;
+				} else {
+					std::cout << "No comprendo: " << in << std::endl;
+				}
+			}
+			constexpr static uint8_t
+				CONNECT      = 0x00,
+				TOGGLE_READY = 0x01,
+				DISCONNECT   = 0x02;
+			if (socket.hasData()) {
+				auto id = uint32_t( 0 );
+				auto name = std::string();
+				switch (socket.read()) {
+					case CONNECT: 
+						id = uint32_t( socket.read() );
+						socket.width(Socket::U8) >> name;
+						std::cout << "Client connected -> id: " << id << ", username: " << name << std::endl;
+						break;
+					case TOGGLE_READY:
+						id = uint32_t( socket.read() );
+						std::cout << "Client toggled ready -> id: " << id << std::endl;
+						break;
+					case DISCONNECT:
+						id = uint32_t( socket.read() );
+						std::cout << "Client disconnected -> id: " << id << std::endl;
+						break;
+					default:
+						std::cout << "Wakarimasen deshita" << std::endl;
+				}
+			}
+		}
 	} catch (const std::string & message) {
 		std::cerr << message << std::endl;
 		return -1;
