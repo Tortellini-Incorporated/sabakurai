@@ -64,6 +64,8 @@ class Socket {
 		auto connect() -> void;
 		auto close() -> void;
 
+		auto hasData() -> bool;
+		auto read() -> uint8_t;
 		template <typename T>
 		auto operator<<(const T & data) -> Socket& {
 			message << data;
