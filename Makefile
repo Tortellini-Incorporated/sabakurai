@@ -9,8 +9,8 @@ okurai: out src/metestkurai.c
 saba: out src/saba.c
 	gcc -DPORT=$(PORT) src/saba.c src/server.c -o out/saba
 
-curses: out src/curses.cpp src/window.cpp src/box.cpp
-	g++ src/box.cpp src/window.cpp src/curses.cpp -lncurses -o out/curses
+curses: out src/curses.cpp src/window.cpp src/box.cpp src/split.cpp
+	g++ src/split.cpp src/box.cpp src/window.cpp src/curses.cpp -lncurses -o out/curses
 
 out:
 	mkdir -p out
