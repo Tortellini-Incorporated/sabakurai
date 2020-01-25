@@ -1,16 +1,34 @@
 #include "window.hpp"
 
-Window::Window() {
-	internal.x      = 0;
-	internal.y      = 0;
-	internal.width  = COLS;
-	internal.height = LINES;
-	internal.window = stdscr;
+auto Window::root_get_char() -> uint32_t {
+	auto c = ::getch();
+	while (c == KEY_RESIZE) {
+		internal = { 0, 0, COLS, LINES, stdscr };
+		clear().component_resize();
+		c = ::getch();
+	}
+	return c;
 }
 
-Window::Window(uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
+auto Window::window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void {
+	::delwin(internal.window);
+	internal = {
+		x, y, width, height, ::newwin(height, width, y, x), internal.root
+	};
+}
+
+auto Window::component_resize() -> void {}
+
+Window::Window() {
+	initscr();
+	internal = {
+		0, 0, COLS, LINES, stdscr, this
+	};
+}
+
+Window::Window(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
 	internal{
-		x, y, width, height, ::newwin(height, width, y, x)
+		x, y, width, height, ::newwin(height, width, y, x), &root
 	} {}
 
 Window::Window(Window && window) :
@@ -30,16 +48,34 @@ auto Window::move(uint32_t x, uint32_t y) -> Window& {
 }
 
 auto Window::add_char(uint32_t c) -> Window& {
-	waddch(internal.window, c);
+	::waddch(internal.window, c);
 	return *this;
 }
 
 auto Window::print(const char * format, ...) -> Window& {
 	std::va_list args;
 	va_start(args, format);
-	vwprintw(internal.window, format, args);
+	::vwprintw(internal.window, format, args);
 	va_end(args);
 	return *this;
+}
+
+auto Window::horz_line(uint32_t width, uint32_t c) -> Window& {
+	whline(internal.window, c, width);
+	return *this;
+}
+
+auto Window::vert_line(uint32_t height, uint32_t c) -> Window& {
+	wvline(internal.window, c, height);
+	return *this;
+}
+
+auto Window::draw() -> Window& {
+	return *this;
+}
+
+auto Window::get_char() -> uint32_t {
+	return internal.root->root_get_char();
 }
 
 auto Window::clear() -> Window& {
@@ -74,37 +110,19 @@ auto Window::window() -> WINDOW* {
 	return internal.window;
 }
 
+auto Window::block(bool value) -> void {
+	::nodelay(Window::internal.window, !value);
+}
+
 Window::~Window() {
-	clear();
-	refresh();
-	if (internal.window) {
-		delwin(internal.window);
+	if (internal.window != stdscr) {
+		clear();
+		refresh();
+		if (internal.window) {
+			delwin(internal.window);
+		}
+	} else {
+		endwin();
 	}
 }
 
-auto RootWindow::getch() -> void {
-	auto ret = c;
-	c = getch();
-	if (c == KEY_RESIZE) {
-		Window::internal.component.rezize();
-		c = getch();
-	}
-	return ret;
-}
-
-RootWindow::RootWindow() {
-	initscr();
-	Window::internal.x      = 0;
-	Window::internal.y      = 0;
-	Window::internal.width  = COLS;
-	Window::internal.height = LINES;
-	Window::internal.window = stdscr;
-}
-
-void RootWindow::block(bool value) -> void {
-	nedelay(Window::internal.window, !value);
-}
-
-RootWindow::~RootWindow() {
-	endwin();
-}

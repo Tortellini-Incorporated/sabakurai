@@ -5,8 +5,8 @@
 #include <ncurses.h>
 #include <cstdarg>
 
-class Window : public Resizable {
-	private:
+class Window {
+	protected:
 		struct Internal {
 			uint32_t x;
 			uint32_t y;
@@ -14,13 +14,17 @@ class Window : public Resizable {
 			uint32_t height;
 
 			WINDOW * window;
+			Window * root;
 		} internal;
 
-	protected:
-		Window();
+		auto root_get_char() -> uint32_t;
+
+		auto window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void;
+		virtual auto component_resize() -> void;
 
 	public:
-		Window(RootWindow & window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+		Window();
+		Window(Window & window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 		Window(const Window & window) = delete;
 		Window(Window && window);
 
@@ -31,13 +35,15 @@ class Window : public Resizable {
 
 		auto add_char(uint32_t c) -> Window&;
 		auto print(const char * format, ...) -> Window&;
+		auto horz_line(uint32_t width,  uint32_t c) -> Window&;
+		auto vert_line(uint32_t height, uint32_t c) -> Window&;
+
+		virtual auto draw() -> Window&;
 
 		auto get_char() -> uint32_t;
 
 		auto clear() -> Window&;
 		auto refresh() -> Window&;
-
-		auto resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void;
 
 		auto x() -> uint32_t;
 		auto y() -> uint32_t;
@@ -45,21 +51,23 @@ class Window : public Resizable {
 		auto height() -> uint32_t;
 		auto window() -> WINDOW*;
 
-		~Window();	
+		auto block(bool value = true) -> void;
+		
+		~Window();
 };
 
 class RootWindow : public Window {
 	private:
-		uint32_t c;
+		struct Internal {
+			Window * child;
+		} root_internal;
 
-		auto getch() -> void;
 	public:
 		RootWindow();
-		auto block(bool value = true) -> void;
 		~RootWindow();
 
 	friend class Window;
-};		
+};
 
 #define SABAKURAI_WINDOW_FORWARD
 #endif // SABAKURAI_WINDOW
