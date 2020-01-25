@@ -17,14 +17,15 @@ class Window {
 			Window * root;
 		} internal;
 
-		auto root_get_char() -> uint32_t;
-
-		auto window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void;
+		auto root_get_char(WINDOW * window) -> uint32_t;
 		virtual auto component_resize() -> void;
 
 	public:
+		auto window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void;
+
 		Window();
-		Window(Window & window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+		Window(Window & root, bool dummy);
+		Window(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 		Window(const Window & window) = delete;
 		Window(Window && window);
 
