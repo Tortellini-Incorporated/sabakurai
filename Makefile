@@ -16,4 +16,4 @@ out:
 	mkdir -p out
 
 clean: 
-	rm out/*
+	rm out/* -r
