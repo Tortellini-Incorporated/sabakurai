@@ -1,14 +1,8 @@
 #include "split.hpp"
 
-#include <fstream>
-
-extern std::ofstream file;
-
 auto Split::component_resize() -> void {
-	file << first_child << ", " << second_child << std::endl;
 	auto split_location = this->split_location(internal.x, internal.y, internal.width, internal.height);
 	if (split_direction == HORZ) {
-		file << split_location << ", " << internal.height - split_location << std::endl;
 		if (first_child != 0) {
 			first_child->window_resize(internal.x, internal.y, internal.width, split_location);
 		}
@@ -16,14 +10,11 @@ auto Split::component_resize() -> void {
 			second_child->window_resize(internal.x, internal.y + split_location, internal.width, internal.height - split_location);
 		}
 	} else {
-		file << split_location << ", " << internal.width - split_location << std::endl;
 		if (first_child != 0) {
 			first_child->window_resize(internal.x, internal.y, split_location, internal.height);
-		file << split_location << ", " << internal.width - split_location << std::endl;
 		}
 		if (second_child != 0) {
 			second_child->window_resize(internal.x + split_location, internal.y, internal.width - split_location, internal.height);
-		file << split_location << ", " << internal.width - split_location << std::endl;
 		}
 	}
 }

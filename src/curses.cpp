@@ -5,17 +5,13 @@
 
 #include "box.hpp"
 #include "split.hpp"
-
-std::ofstream file("debug.log");
+#include "title.hpp"
 
 int32_t main(int32_t argc, char ** argv) {
-	Box root = { "Root Window" };
-	root.block(true);
-	file << root.width() << std::endl;
+	Box root = { "" };
 
 	cbreak();
 	noecho();
-
 	keypad(stdscr, TRUE);
 
 	root.draw().refresh();
@@ -23,18 +19,15 @@ int32_t main(int32_t argc, char ** argv) {
 	Split split = {
 		root,
 		[](uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> uint32_t {
-			return 0.5 * width;
+			return height < 5 ? height : 5;
 		},
-		Split::VERT
+		Split::HORZ
 	};
-	file << "yes" << std::endl;
 	root.set_child(&split);
-	file << "wat" << std::endl;
 
-	Box left  = { root, "Left Split" };
-	Box right = { root, "Right Split" };
-	file << "left width: " << left.width() << std::endl;
-	split.set_children(&left, &right);
+	Title title = { root, true };
+	Box main = { root, "" };
+	split.set_children(&title, &main);
 
 	root.get_char();
 

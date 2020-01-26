@@ -1,7 +1,5 @@
 #include "window.hpp"
 
-#include <fstream>
-
 auto Window::root_get_char(WINDOW * window) -> uint32_t {
 	auto c = ::wgetch(window);
 	while (c == KEY_RESIZE) {
@@ -12,23 +10,19 @@ auto Window::root_get_char(WINDOW * window) -> uint32_t {
 	return c;
 }
 
-extern std::ofstream file;
-
 auto Window::window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void {
-	file << "resize 1: " << x << ", " << y << ", " << width << ", " << height << std::endl << internal.x << ", " << internal.y << ", " << internal.width << ", " << internal.height << ", " << (internal.window == 0) << ", " << (internal.root == 0) << std::endl;
 	if (internal.window != 0) {
 		::delwin(internal.window);
 	}
-	file << "resize 2" << std::endl;
 	internal = {
 		x, y, width, height, ::newwin(height, width, y, x), internal.root
 	};
-	file << "resize 3" << std::endl;
 	component_resize();
-	file << "resize end" << std::endl;
 }
 
-auto Window::component_resize() -> void {}
+auto Window::component_resize() -> void {
+	draw().refresh();
+}
 
 Window::Window() {
 	initscr();
