@@ -1,7 +1,7 @@
 #include "box.hpp"
 
 auto Box::component_resize() -> void {
-	clear().draw().refresh();
+	draw().refresh();
 	if (child != 0) {
 		child->window_resize(internal.x + 1, internal.y + 1, internal.width - 2, internal.height - 2);
 	}
