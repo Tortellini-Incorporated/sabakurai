@@ -22,7 +22,7 @@ typedef struct GameData {
 int getRandomStringMesg(char* buffer) {
 	int numToRead = rand() % NUM_STRINGS;
 	char titleBuffer[32];
-	sprintf(titleBuffer, "texts/%d\0", numToRead);
+	sprintf(titleBuffer, "texts/%d", numToRead);
 	
 	FILE* file = fopen(titleBuffer, "r");
 	if (!file) {
@@ -82,7 +82,7 @@ void updatePlayers(ServerSession* server) {
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: parsing message from [%s], message [%s]\n", session->players[client].name, data);
+	printf("debug: parsing message from [%s], message [%s]\n", session->players[client].name, (char*) data);
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			int nameLength = *((int*) data) & 0xFF;
@@ -153,7 +153,7 @@ ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_i
 
 ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: [%s] disconnected\n", session->players[client]);
+	printf("debug: [%s] disconnected\n", session->players[client].name);
 	if (session->currentState) {
 		
 	} else {
