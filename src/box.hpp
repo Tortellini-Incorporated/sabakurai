@@ -19,6 +19,8 @@ class Box : public Window {
 		auto set_child(Window * window) -> void;
 		auto set_name(const std::string & name) -> void;
 		virtual auto draw() -> Window&;
+		virtual auto clear() -> Window&;
+		virtual auto refresh() -> Window&;
 		~Box();
 };
 

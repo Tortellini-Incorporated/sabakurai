@@ -59,6 +59,25 @@ auto Box::draw() -> Window& {
 			}
 		}
 	}
+	if (child != 0) {
+		child->draw();
+	}
+	return *this;
+}
+
+auto Box::clear() -> Window& {
+	Window::clear();
+	if (child != 0) {
+		child->clear();
+	}
+	return *this;
+}
+
+auto Box::refresh() -> Window& {
+	Window::refresh();
+	if (child != 0) {
+		child->refresh();
+	}
 	return *this;
 }
 

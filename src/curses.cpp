@@ -13,8 +13,6 @@ int32_t main(int32_t argc, char ** argv) {
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
-
-	root.draw().refresh();
 	
 	Split split = {
 		root,
@@ -23,16 +21,13 @@ int32_t main(int32_t argc, char ** argv) {
 		},
 		Split::HORZ
 	};
-	root.set_child(&split);
 
 	Box titleBox = { root, "" };
 	Title title = { root, true };
 	titleBox.set_child(&title);
 
 	Box logBox = { root, "Log" };
-
 	Box playerBox = { root, "Players" };
-
 	Box commandBox = { root, "Command" };
 
 	Split split2 = {
@@ -42,7 +37,6 @@ int32_t main(int32_t argc, char ** argv) {
 		},
 		Split::HORZ
 	};
-
 	Split split3 = {
 		root,
 		[](uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> uint32_t {
@@ -51,10 +45,11 @@ int32_t main(int32_t argc, char ** argv) {
 		Split::VERT
 	};
 	split3.set_children(&logBox, &playerBox);
-
 	split2.set_children(&split3, &commandBox);
-
 	split.set_children(&titleBox, &split2);
+	root.set_child(&split);
+
+	root.draw().refresh();
 
 	root.get_char();
 

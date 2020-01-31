@@ -43,8 +43,8 @@ class Window {
 
 		auto get_char() -> uint32_t;
 
-		auto clear() -> Window&;
-		auto refresh() -> Window&;
+		virtual auto clear() -> Window&;
+		virtual auto refresh() -> Window&;
 
 		auto x() -> uint32_t;
 		auto y() -> uint32_t;

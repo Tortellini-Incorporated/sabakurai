@@ -82,4 +82,34 @@ auto Split::set_direction(LocationCallback location, SplitDirection direction) -
 	component_resize();
 }
 
+auto Split::draw() -> Window& {
+	if (first_child != 0) {
+		first_child->draw();
+	}
+	if (second_child != 0) {
+		second_child->draw();
+	}
+	return *this;
+}
+
+auto Split::clear() -> Window& {
+	if (first_child != 0) {
+		first_child->clear();
+	}
+	if (second_child != 0) {
+		second_child->clear();
+	}
+	return *this;
+}
+
+auto Split::refresh() -> Window& {
+	if (first_child != 0) {
+		first_child->refresh();
+	}
+	if (second_child != 0) {
+		second_child->refresh();
+	}
+	return *this;
+}
+
 Split::~Split() {}
