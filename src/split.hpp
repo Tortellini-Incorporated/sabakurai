@@ -28,6 +28,9 @@ class Split : public Window {
 		auto set_children(Window * first, Window * second) -> void;
 		auto set_location(LocationCallback location) -> void;
 		auto set_direction(LocationCallback location, SplitDirection direction) -> void;
+		virtual auto draw() -> Window&;
+		virtual auto clear() -> Window&;
+		virtual auto refresh() -> Window&;
 		~Split();
 };
 
