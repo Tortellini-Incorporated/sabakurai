@@ -6,6 +6,9 @@
 #include "box.hpp"
 #include "split.hpp"
 #include "title.hpp"
+#include "player_list.hpp"
+
+std::ofstream file("debug.log");
 
 int32_t main(int32_t argc, char ** argv) {
 	Box root = { "" };
@@ -27,7 +30,11 @@ int32_t main(int32_t argc, char ** argv) {
 	titleBox.set_child(&title);
 
 	Box logBox = { root, "Log" };
+
 	Box playerBox = { root, "Players" };
+	PlayerList players = { root, true };
+	playerBox.set_child(&players);
+
 	Box commandBox = { root, "Command" };
 
 	Split split2 = {
@@ -50,6 +57,22 @@ int32_t main(int32_t argc, char ** argv) {
 	root.set_child(&split);
 
 	root.draw().refresh();
+
+	root.get_char();
+
+	players.add_player(0, 0, "C1FR1");
+	players.add_player(1, 0, "Gnarwhal");
+	players.add_player(2, 0, "Garou");
+	players.add_player(3, 0, "Hello World!");
+
+	players.draw().refresh();
+
+	root.get_char();
+
+	players.remove_player(2);
+	players.remove_player(0);
+
+	players.draw().refresh();
 
 	root.get_char();
 
