@@ -1,9 +1,20 @@
+#include <fstream>
+
 #include "box.hpp"
 
+extern std::ofstream file;
+
 auto Box::component_resize() -> void {
-	draw().refresh();
 	if (child != 0) {
-		child->window_resize(internal.x + 1, internal.y + 1, internal.width - 2, internal.height - 2);
+		auto child_width  = internal.width  - 2;
+		auto child_height = internal.height - 2;
+		if (child_width > internal.width) {
+			child_width = 0;
+		}
+		if (child_height > internal.height) {
+			child_height = 0;
+		}
+		child->window_resize(internal.x + 1, internal.y + 1, child_width, child_height);
 	}
 }
 
@@ -24,9 +35,7 @@ Box::Box(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
 
 auto Box::set_child(Window * child) -> void {
 	this->child = child;
-	if (child != 0) {
-		child->window_resize(internal.x + 1, internal.y + 1, internal.width - 2, internal.height - 2);
-	}
+	component_resize();
 }
 
 auto Box::set_name(const std::string & name) -> void {

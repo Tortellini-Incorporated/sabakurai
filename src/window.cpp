@@ -1,11 +1,22 @@
+#include <fstream>
+
 #include "window.hpp"
 
-auto Window::root_get_char(WINDOW * window) -> uint32_t {
-	auto c = ::wgetch(window);
+extern std::ofstream file;
+
+auto Window::root_get_char(const Window & window) -> uint32_t {
+	file << (window.internal.window != 0) << std::endl;
+	auto c = ::wgetch(window.internal.window);
+	file << "Resize -2" << std::endl;
 	while (c == KEY_RESIZE) {
+		file << "Resize -1" << std::endl;
 		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr };
-		clear().component_resize();
-		c = ::wgetch(window);
+		file << "Resize 0" << std::endl;
+		component_resize();
+		file << "Resize 1" << std::endl;
+		clear().draw().refresh();
+		file << "Resize 2" << std::endl;
+		c = ::wgetch(window.internal.window);
 	}
 	return c;
 }
@@ -20,9 +31,7 @@ auto Window::window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t heig
 	component_resize();
 }
 
-auto Window::component_resize() -> void {
-	draw().refresh();
-}
+auto Window::component_resize() -> void {}
 
 Window::Window() {
 	initscr();
@@ -83,12 +92,12 @@ auto Window::draw() -> Window& {
 }
 
 auto Window::get_char() -> uint32_t {
-	return internal.root->root_get_char(internal.window);
+	return internal.root->root_get_char(*this);
 }
 
 auto Window::clear() -> Window& {
-	for (auto i = uint32_t{ 0 }; i < internal.width; ++i) {
-		mvwvline(internal.window, 0, i, ' ', internal.height);
+	for (auto i = uint32_t{ 0 }; i < internal.height; ++i) {
+		mvwhline(internal.window, i, 0, ' ', internal.width);
 	}
 	return *this;
 }

@@ -17,7 +17,7 @@ class Window {
 			Window * root;
 		} internal;
 
-		auto root_get_char(WINDOW * window) -> uint32_t;
+		auto root_get_char(const Window & window) -> uint32_t;
 		virtual auto component_resize() -> void;
 
 	public:
