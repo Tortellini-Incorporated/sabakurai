@@ -5,17 +5,11 @@
 extern std::ofstream file;
 
 auto Window::root_get_char(const Window & window) -> uint32_t {
-	file << (window.internal.window != 0) << std::endl;
 	auto c = ::wgetch(window.internal.window);
-	file << "Resize -2" << std::endl;
 	while (c == KEY_RESIZE) {
-		file << "Resize -1" << std::endl;
 		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr };
-		file << "Resize 0" << std::endl;
 		component_resize();
-		file << "Resize 1" << std::endl;
 		clear().draw().refresh();
-		file << "Resize 2" << std::endl;
 		c = ::wgetch(window.internal.window);
 	}
 	return c;
