@@ -7,6 +7,7 @@
 #include "split.hpp"
 #include "title.hpp"
 #include "player_list.hpp"
+#include "log.hpp"
 
 std::ofstream file("debug.log");
 
@@ -29,11 +30,13 @@ int32_t main(int32_t argc, char ** argv) {
 	Title title = { root, true };
 	titleBox.set_child(&title);
 
-	Box logBox = { root, "Log" };
-
 	Box playerBox = { root, "Players" };
 	PlayerList players = { root, true };
 	playerBox.set_child(&players);
+
+	Box logBox = { root, "Log" };
+	Log log = { root, true };
+	logBox.set_child(&log);
 
 	Box commandBox = { root, "Command" };
 
