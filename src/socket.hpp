@@ -17,6 +17,7 @@
 #else
 	#include <sys/socket.h>
 	#include <arpa/inet.h>
+	#include <poll.h>
 	#include <unistd.h>
 
 	using CSocket = int;
@@ -50,7 +51,7 @@ class Socket {
 		std::stringstream message;
 		Flags mFlags;
 		Width mWidth;
-		bool blocking;
+		pollfd pollFd;
 
 	public:
 		Socket(int domain, int type, int protocol);
@@ -64,7 +65,7 @@ class Socket {
 		auto connect() -> void;
 		auto close() -> void;
 
-		auto hasData() -> bool;
+		auto poll(uint32_t timeout) -> bool;
 		auto read() -> uint8_t;
 		template <typename T>
 		auto operator<<(const T & data) -> Socket& {

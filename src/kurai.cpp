@@ -35,6 +35,7 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 			htons(PORT),
 			inet_addr(ip.c_str())
 		}).connect();
+		socket.block(false, 16);
 		std::cout << "Connected to server at ip '" << ip << '\'' << std::endl;
 
 		std::cout << "Sending user info..." << std::endl;
@@ -62,21 +63,24 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 				CONNECT      = 0x00,
 				TOGGLE_READY = 0x01,
 				DISCONNECT   = 0x02;
-			if (socket.hasData()) {
+			char c;
+			if (socket.read(c)) {
 				auto id = uint32_t( 0 );
 				auto name = std::string();
-				switch (socket.read()) {
-					case CONNECT: 
-						id = uint32_t( socket.read() );
+				char signal;
+				socket.read(signal);
+				switch (c) {
+					case CONNECT:
+						id = uint32_t( signal );
 						socket.width(Socket::U8) >> name;
 						std::cout << "Client connected -> id: " << id << ", username: " << name << std::endl;
 						break;
 					case TOGGLE_READY:
-						id = uint32_t( socket.read() );
+						id = uint32_t( signal );
 						std::cout << "Client toggled ready -> id: " << id << std::endl;
 						break;
 					case DISCONNECT:
-						id = uint32_t( socket.read() );
+						id = uint32_t( signal );
 						std::cout << "Client disconnected -> id: " << id << std::endl;
 						break;
 					default:
