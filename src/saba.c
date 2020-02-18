@@ -101,7 +101,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 
 			int total_message_len = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
-				if (server->clients[i]) {
+				if (server->clients[i] && i != client && session->players[i].name) {
 					total_message_len += 2 + strlen(session->players[i].name);
 				}
 			}
@@ -110,7 +110,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			msgData[1] = session->numPlayers;
 			int index = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
-				if (server->clients[i]) {
+				if (server->clients[i] && i != client && session->players[i].name) {
 					size_t name_len = strlen(session->players[i].name) * sizeof(char);
 					msgData[index++] = i;
 					msgData[index++] = name_len;
