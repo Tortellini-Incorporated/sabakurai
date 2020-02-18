@@ -91,12 +91,34 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			session->players[client].name[nameLength] = 0;
 			printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
 
-			char* msgData = malloc(2 + nameLength);
+			char* msgData = malloc(3 + nameLength);
 			msgData[0] = 0;
 			msgData[1] = client;
 			msgData[2] = (char) nameLength;
 			memcpy(msgData + 3, session->players[client].name, nameLength);
 			broadcastPacket(server, msgData, 3 + nameLength);
+			free(msgData);
+
+			int total_message_len = 2;
+			for (int i = 0; i < server->maxClients; ++i) {
+				if (server->clients[i]) {
+					total_message_len += 2 + strlen(session->players[i].name);
+				}
+			}
+			msgData = malloc(total_message_len * sizeof(char));
+			msgData[0] = 4;
+			msgData[1] = session->numPlayers;
+			int index = 2;
+			for (int i = 0; i < server->maxClients; ++i) {
+				if (server->clients[i]) {
+					size_t name_len = strlen(session->players[i].name) * sizeof(char);
+					msgData[index++] = i;
+					msgData[index++] = name_len;
+					memcpy(msgData + index, session->players[i].name, name_len);
+					index += name_len;
+				}
+			}
+			sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
 			free(msgData);
 
 			length -= nameLength + 1;
@@ -155,13 +177,17 @@ ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
 	printf("debug: [%s] disconnected\n", session->players[client].name);
 	if (session->currentState) {
-		
+		//was I going to do something here?
 	} else {
 		if (session->players[client].name) {
 			--session->numPlayers;
 			if (!session->players[client].progress) {
 				--session->numReady;
 			}
+			char packet_data[2];
+			packet_data[0] = 0;
+			packet_data[1] = client;
+			broadcastPacket(server, packet_data, 2);
 		}
 	}
 }
