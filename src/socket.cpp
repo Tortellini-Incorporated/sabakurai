@@ -1,6 +1,7 @@
 #include "socket.hpp"
 
 #include <iostream>
+#include <fstream>
 
 #ifdef _WIN32
 	int initSocket() {
@@ -32,17 +33,20 @@
 	}
 #endif
 
+extern std::ofstream file;
+
 Socket::Socket(int domain, int type, int protocol) :
 	socket(::socket(domain, type, protocol)),
 	mAddressInfo({}),
 	connected(false),
 	message(),
 	mFlags(),
-	mWidth(NONE),
-	blocking(true) {
+	mWidth(NONE) {
 	if (socket == -1) {
 		throw std::string("Failed to create socket");
 	}
+	pollFd.fd = socket;
+	pollFd.events = POLLIN;
 }
 
 auto Socket::addressInfo(const sockaddr_in & addressInfo) -> Socket& {
@@ -72,11 +76,13 @@ auto Socket::close() -> void {
 	connected = false;
 }
 
-auto Socket::hasData() -> bool {
-	fd_set input;
-	FD_ZERO(&input);
-	FD_SET(socket, &input);
-	return FD_ISSET(socket, &input);
+auto Socket::poll(uint32_t timeout) -> bool {
+	auto pollResult = ::poll(&pollFd, 1, timeout);
+	if (pollResult > 0 && pollFd.revents & POLLIN) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 auto Socket::read() -> uint8_t {
@@ -101,7 +107,6 @@ auto Socket::operator>>(std::vector<char> & vector) -> Socket& {
 		length <<= 8;
 		length |= buffer[i];
 	}
-	std::cout << length << std::endl;
 	vector.resize(length);
 	recv(socket, &vector[0], length, mFlags.flags);
 	return *this;

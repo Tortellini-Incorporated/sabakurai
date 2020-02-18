@@ -9,8 +9,11 @@ okurai: out src/metestkurai.c
 saba: out src/saba.c
 	gcc -DPORT=$(PORT) src/saba.c src/server.c -o out/saba
 
-curses: out out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/curses.cpp
-	g++ $(flags) src/curses.cpp out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o out/curses
+curses: out out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/curses.cpp
+	g++ $(flags) -DPORT=$(PORT) src/curses.cpp out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o out/curses
+
+out/socket.o: out src/socket.cpp src/socket.hpp
+	g++ $(flags) -c src/socket.cpp -o out/socket.o
 
 out/log.o: out src/log.cpp src/log.hpp
 	g++ $(flags) -c src/log.cpp -o out/log.o

@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "socket.hpp"
+
 #include "box.hpp"
 #include "split.hpp"
 #include "title.hpp"
@@ -12,7 +14,28 @@
 std::ofstream file("debug.log");
 
 int32_t main(int32_t argc, char ** argv) {
+	auto ip = std::string();
+	if (argc > 1) {
+		ip = argv[1];
+	} else {
+		std::cout << "Please enter an ip address: " << std::flush;
+		std::getline(std::cin, ip);
+	}
+
+	auto username = std::string();
+	if (argc > 2) {
+		username = argv[2];
+	} else {
+		std::cout << "Please enter a username: " << std::flush;
+		std::getline(std::cin, username);
+	}
+	while (255 < username.size() || username.size() < 1) {
+		std::cout << "Username must be between 1 and 255 characters long.\nPlease enter a username: " << std::flush;
+		std::getline(std::cin, username);
+	}
+
 	Box root = { "" };
+	root.block(false);
 
 	cbreak();
 	noecho();
@@ -61,23 +84,62 @@ int32_t main(int32_t argc, char ** argv) {
 
 	root.draw().refresh();
 
-	root.get_char();
+	try {
+		Socket socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+		file << "Socket created successfully" << std::endl;
 
-	players.add_player(0, 0, "C1FR1");
-	players.add_player(1, 0, "Gnarwhal");
-	players.add_player(2, 0, "Garou");
-	players.add_player(3, 0, "Hello World!");
+		file << "Trying to connect to server..." << std::endl;
+		socket.addressInfo({
+			AF_INET,
+			htons(PORT),
+			inet_addr(ip.c_str())
+		}).connect();
+		file << "Connected to server at ip '" << ip << '\'' << std::endl;
 
-	players.draw().refresh();
+		file << "Sending user info..." << std::endl;
+		socket.width(Socket::U8) << username << Socket::FLUSH;
 
-	root.get_char();
-
-	players.remove_player(2);
-	players.remove_player(0);
-
-	players.draw().refresh();
-
-	root.get_char();
+		bool quit = false;
+		while (!quit) {
+			switch (root.get_char()) {
+				case 'r': socket.width(Socket::NONE) << 'r' << Socket::FLUSH; break;
+				case 'u': socket.width(Socket::NONE) << 'u' << Socket::FLUSH; break;
+				case 'q': quit = true; break;
+			}
+			constexpr static uint8_t
+				CONNECT      = 0x00,
+				TOGGLE_READY = 0x01,
+				DISCONNECT   = 0x02;
+			if (socket.poll(16)) {
+				auto id = uint32_t( 0 );
+				auto name = std::string();
+				switch (socket.read()) {
+					case CONNECT:
+						id = uint32_t( socket.read() );
+						socket.width(Socket::U8) >> name;
+						players.add_player(id, 0, name);
+						players.draw().refresh();
+						file << "Connect: " << id << ", " << name << std::endl;
+						break;
+					case TOGGLE_READY:
+						id = uint32_t( socket.read() );
+						file << "Toggled ready" << std::endl;
+						break;
+					case DISCONNECT:
+						id = uint32_t( socket.read() );
+						players.remove_player(id);
+						players.draw().refresh();
+						file << "Disconnect: " << id << std::endl;
+						break;
+					default:
+						file << "Wakarimasen deshita" << std::endl;
+				}
+			}
+		}
+	} catch (const std::string & message) {
+		std::cerr << message << std::endl;
+		return -1;
+	}
 
 	return 0;
 }
