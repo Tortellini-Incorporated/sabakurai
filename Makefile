@@ -1,43 +1,43 @@
 PORT=4730
 
-kurai: out src/kurai.cpp src/socket.cpp
-	g++ -DPORT=$(PORT) src/socket.cpp src/kurai.cpp -lncurses -o out/kurai
+sabakurai: out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/sabakurai.cpp
+	g++ $(flags) -DPORT=$(PORT) src/sabakurai.cpp out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o $@
 
-okurai: out src/metestkurai.c
-	gcc -DPORT=$(PORT) src/metestkurai.c -lncurses -o out/kurai
+saba: src/saba.c
+	gcc -DPORT=$(PORT) src/saba.c src/server.c -o $@
 
-saba: out src/saba.c
-	gcc -DPORT=$(PORT) src/saba.c src/server.c -o out/saba
+out/socket.o: src/socket.cpp src/socket.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/socket.cpp -o $@
 
-curses: out out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/curses.cpp
-	g++ $(flags) -DPORT=$(PORT) src/curses.cpp out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o out/curses
+out/log.o: src/log.cpp src/log.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/log.cpp -o $@
 
-out/socket.o: out src/socket.cpp src/socket.hpp
-	g++ $(flags) -c src/socket.cpp -o out/socket.o
+out/player_list.o: src/player_list.cpp src/player_list.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/player_list.cpp -o $@
 
-out/log.o: out src/log.cpp src/log.hpp
-	g++ $(flags) -c src/log.cpp -o out/log.o
+out/title.o: src/title.cpp src/title.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/title.cpp -o $@
 
-out/player_list.o: out src/player_list.cpp src/player_list.hpp
-	g++ $(flags) -c src/player_list.cpp -o out/player_list.o
+out/split.o: src/split.cpp src/split.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/split.cpp -o $@
 
-out/title.o: out src/title.cpp src/title.hpp
-	g++ $(flags) -c src/title.cpp -o out/title.o
+out/box.o: src/box.cpp src/box.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/box.cpp -o $@
 
-out/split.o: out src/split.cpp src/split.hpp
-	g++ $(flags) -c src/split.cpp -o out/split.o
+out/window.o: src/window.cpp src/window.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/window.cpp -o $@
 
-out/box.o: out src/box.cpp src/box.hpp
-	g++ $(flags) -c src/box.cpp -o out/box.o
+out/sleep.o: src/sleep.c src/sleep.h
+	mkdir -p out/
+	gcc $(flags) -c src/sleep.c -o $@
 
-out/window.o: out src/window.cpp src/window.hpp
-	g++ $(flags) -c src/window.cpp -o out/window.o
-
-out/sleep.o: out src/sleep.c src/sleep.h
-	gcc -c src/sleep.c -o out/sleep.o
-
-out:
-	mkdir -p out
-
+.PHONY: clean
 clean: 
-	rm out/* -r
+	rm saba sabakurai out/* -rf
