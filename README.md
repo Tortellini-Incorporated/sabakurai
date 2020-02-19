@@ -95,7 +95,7 @@ struct OnConnect {
 The first byte of every message indicates the type of message it is
 
 ```cpp
-enum MessageType {
+enum MessageType : uint8_t {
 	TOGGLE_READY = 0, // Change the ready status of the client
 	CHANGE_NAME  = 1, // Changes the name of the client
 };
