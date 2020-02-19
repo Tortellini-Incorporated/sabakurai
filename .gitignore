@@ -1,3 +1,9 @@
-out/
-debug.log
+# Ignore everything
+*
+
+# Don't ignore a few things
+! src/
+! texts/
+! README.md
+! Makefile
 
