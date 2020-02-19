@@ -87,7 +87,7 @@ ServerState checkRequests(ServerSession* server, NewConnectionCallback callback)
 
 		int newSocket = accept(server->server, (struct sockaddr*)&socketAddress, &addressSize);
 		if (newSocket < 0) {
-			fprintf(stderr, "failed to accept request");
+			fprintf(stderr, "failed to accept request\n");
 			return SSTATE_FAILED_ACCEPT;
 		}
 		int i;
