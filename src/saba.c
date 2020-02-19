@@ -88,32 +88,26 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 		if (session->players[client].name == 0) {//Player announcing name
 			int nameLength = *((int*) data) & 0xFF;
 			session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
-			memcpy(session->players[client].name, ((char*)data) + 1, nameLength * sizeof(char));
+			memcpy(session->players[client].name, ((char*) data) + 1, nameLength * sizeof(char));
 			session->players[client].name[nameLength] = 0;
 			printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
 
-			char* msgData = malloc(3 + nameLength);
-			msgData[0] = 0;
-			msgData[1] = client;
-			msgData[2] = (char) nameLength;
-			memcpy(msgData + 3, session->players[client].name, nameLength);
-			broadcastPacket(server, msgData, 3 + nameLength);
-			free(msgData);
-
+			char* msgData;
 			int total_message_len = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
 				if (server->clients[i] && i != client && session->players[i].name) {
-					total_message_len += 2 + strlen(session->players[i].name);
+					total_message_len += 3 + strlen(session->players[i].name);
 				}
 			}
 			msgData = malloc(total_message_len * sizeof(char));
-			msgData[0] = 4;
+			msgData[0] = client;
 			msgData[1] = session->numPlayers;
 			int index = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
 				if (server->clients[i] && i != client && session->players[i].name) {
 					size_t name_len = strlen(session->players[i].name) * sizeof(char);
 					msgData[index++] = i;
+					msgData[index++] = session->players[i].progress + 1;
 					msgData[index++] = name_len;
 					memcpy(msgData + index, session->players[i].name, name_len);
 					index += name_len;
@@ -122,48 +116,57 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
 			free(msgData);
 
+			msgData = realloc(msgData, 3 + nameLength);
+			msgData[0] = 0;
+			msgData[1] = client;
+			msgData[2] = (char) nameLength;
+			memcpy(msgData + 3, session->players[client].name, nameLength);
+			broadcastPacket(server, msgData, 3 + nameLength);
+			free(msgData);
+
 			length -= nameLength + 1;
-			data = ((char*) data) - (nameLength + 1);
+			data = ((char*) data) + (nameLength + 1);
 			++session->numPlayers;
 			continue;
 		}
-		if (session->currentState) {
+		if (session->currentState) {// in game
 			char type = *(char*) data;
 			if (type == 0) {
 				session->players[client].progress = ((char*) data)[1] << 8 + ((char*) data)[2];
 			} else if (type == 1) {
 				session->players[client].finishTime = ((char*) data)[1] << 24 + ((char*) data)[2] << 16 + ((char*) data)[3] + ((char*) data)[4] << 8 + ((char*) data)[5];
 			} else {
-				data = (char*) data - 1;
+				data = (char*) data + 1;
 				--length;
 			}
-		} else {
+		} else {// waiting
 			char msg = *(char*) data;
-			if (msg == 'r' && !session->players[client].progress) {
-				printf("debug: %s is now ready\n", session->players[client].name);
-				char sdata[2];
-				sdata[0] = 1;
-				sdata[1] = client;
-				broadcastPacket(server, sdata, 2);
-				session->players[client].progress = 0;
-				++session->numReady;
-				if (session->numReady == session->numPlayers && session->numPlayers > 0) {
-					if (session->startTimer == -1) {
-						session->startTimer = 180;
+			if (msg == 0) {//TOGGLE_READY
+				if (session->players[client].progress) {
+					session->players[client].progress = 0;
+					++session->numReady;
+					if (session->numReady == session->numPlayers && session->numPlayers > 0) {
+						if (session->startTimer == -1) {
+							session->startTimer = 180;
+						}
 					}
+				} else {
+					session->players[client].progress = -1;
+					--session->numReady;
 				}
-
-			} else if (msg == 'u' && session->players[client].progress) {
-				printf("debug: %s is no longer ready\n", session->players[client].name);
+				printf("debug: %s toggled ready, now %d", session->players[client].name, session->players[client].progress + 1);
 				char sdata[2];
 				sdata[0] = 1;
 				sdata[1] = client;
 				broadcastPacket(server, sdata, 2);
-				session->players[client].progress = -1;
-				--session->numReady;
+				data = ((char*) data) + 1;
+				--length;
+			} else if (msg == 1) {//CHANGE_NAME
+				/*TODO*/
+				int nameLen = ((char*) data)[1];
+				data = ((char*) data) + nameLen + 2;
+				length -= nameLen + 2;
 			}
-			data = ((char*) data) - 1;
-			--length;
 		}
 	}
 	return SSTATE_NORMAL;
