@@ -17,6 +17,7 @@ typedef struct GameData {
 	int numPlayers;
 	int numReady;
 	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
+	int startTimer;
 } GameData;
 
 int getRandomStringMesg(char* buffer) {
@@ -147,7 +148,9 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 				session->players[client].progress = 0;
 				++session->numReady;
 				if (session->numReady == session->numPlayers && session->numPlayers > 0) {
-					startGame(server);
+					if (session->startTimer == -1) {
+						session->startTimer = 180;
+					}
 				}
 
 			} else if (msg == 'u' && session->players[client].progress) {
@@ -185,7 +188,7 @@ ServerState disconnectCB(ServerSession* server, int client) {
 				--session->numReady;
 			}
 			char packet_data[2];
-			packet_data[0] = 0;
+			packet_data[0] = 2;
 			packet_data[1] = client;
 			broadcastPacket(server, packet_data, 2);
 		}
@@ -207,6 +210,7 @@ int main(int argc, char** argv) {
 	printf("server starting\n");
 
 	int interval = 5;
+	sessionData.startTimer = -1;
 
 	while (1) {
 		if (processActivityTimed(&server, 0, 16666, newConnectionCB, packetRecievedCB, disconnectCB)) {
@@ -215,6 +219,14 @@ int main(int argc, char** argv) {
 		}
 		if (sessionData.currentState) {
 			updatePlayers(&server);
+		}
+		if (sessionData.numReady == sessionData.numPlayers && sessionData.numPlayers > 0) {
+			--sessionData.startTimer;
+		} else {
+			sessionData.startTimer = -1;
+		}
+		if (sessionData.startTimer == 0) {
+			startGame(&server);
 		}
 	}
 
