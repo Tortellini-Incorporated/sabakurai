@@ -13,6 +13,8 @@
 
 std::ofstream file("debug.log");
 
+void read_player(Socket & socket, PlayerList & players);
+
 int32_t main(int32_t argc, char ** argv) {
 	auto ip = std::string();
 	if (argc > 1) {
@@ -109,30 +111,36 @@ int32_t main(int32_t argc, char ** argv) {
 			constexpr static uint8_t
 				CONNECT      = 0x00,
 				TOGGLE_READY = 0x01,
-				DISCONNECT   = 0x02;
+				DISCONNECT   = 0x02,
+				PLAYER_LIST  = 0x04;
 			if (socket.poll(16)) {
-				auto id = uint32_t( 0 );
-				auto name = std::string();
-				switch (socket.read()) {
-					case CONNECT:
-						id = uint32_t( socket.read() );
-						socket.width(Socket::U8) >> name;
-						players.add_player(id, 0, name);
+				auto read = socket.read();
+				switch (read) {
+					case CONNECT: {
+						read_player(socket, players);
 						players.draw().refresh();
-						file << "Connect: " << id << ", " << name << std::endl;
 						break;
-					case TOGGLE_READY:
-						id = uint32_t( socket.read() );
-						file << "Toggled ready" << std::endl;
+					}
+					case TOGGLE_READY: {
+						auto id = uint32_t( socket.read() );
 						break;
-					case DISCONNECT:
-						id = uint32_t( socket.read() );
+					}
+					case DISCONNECT: {
+						auto id = uint32_t( socket.read() );
 						players.remove_player(id);
 						players.draw().refresh();
-						file << "Disconnect: " << id << std::endl;
 						break;
-					default:
-						file << "Wakarimasen deshita" << std::endl;
+					}
+					case PLAYER_LIST: {
+						auto player_count = socket.read();
+						for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
+							read_player(socket, players);
+						}
+						players.draw().refresh();
+					}
+					default: {
+						file << "Wakarimasen deshita " << uint32_t( read ) << std::endl;
+					}
 				}
 			}
 		}
@@ -143,3 +151,11 @@ int32_t main(int32_t argc, char ** argv) {
 
 	return 0;
 }
+
+void read_player(Socket & socket, PlayerList & players) {
+	auto name = std::string();
+	auto id = uint32_t( socket.read() );
+	socket.width(Socket::U8) >> name;
+	players.add_player(id, 0, name);
+}
+
