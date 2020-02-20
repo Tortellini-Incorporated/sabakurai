@@ -40,7 +40,10 @@ int32_t main(int32_t argc, char ** argv) {
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
-	
+	if (curs_set(0)) {
+		file << "Awwww man it's cursor time :(" << std::endl;
+	}
+
 	Split split = {
 		root,
 		[](uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> uint32_t {
@@ -59,6 +62,12 @@ int32_t main(int32_t argc, char ** argv) {
 
 	Box logBox = { root, "Log" };
 	Log log = { root, true };
+	log.message("C1FR1", "\nstruct Fact {\n\tconst static char * fact = \"Carrot is the superior vegetable. It's high in orange color concentrate giving it a distinctly carrot colored look. Anyone caught not liking carrots will be purged from this world immediately without hesitation. Thanks and have fun!\";\n};");
+	log.message("Gnarwhal", "f");
+	log.message("Gnarwhal", "i");
+	log.message("Gnarwhal", "n");
+	log.message("Gnarwhal", "n");
+	log.message("Gnarwhal", "a");
 	logBox.set_child(&log);
 
 	Box commandBox = { root, "Command" };

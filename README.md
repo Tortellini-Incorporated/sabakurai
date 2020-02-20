@@ -44,7 +44,7 @@ The first byte of every message indicates the type of message it is
 #### CONNECT
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct Connect {
@@ -58,7 +58,7 @@ struct Connect {
 #### TOGGLE_READY
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct ToggleReady {
@@ -70,7 +70,7 @@ struct ToggleReady {
 #### DISCONNECT
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct Disconnect {
@@ -161,7 +161,7 @@ These are the messages sent to the server by the client
 ### On Connect
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct OnConnect {
@@ -182,7 +182,7 @@ The first byte of every message indicates the type of message it is
 #### TOGGLE_READY
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct ToggleReady {
