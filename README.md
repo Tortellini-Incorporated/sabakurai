@@ -31,6 +31,13 @@ struct Player {
 
 The first byte of every message indicates the type of message it is
 
+| TEXT                          | VALUE |
+|:-----------------------------:|:-----:|
+| [CONNECT](#CONNECT)           | 0     |
+| [TOGGLE_READY](#TOGGLE_READY) | 1     |
+| [DISCONNECT](#DISCONNECT)     | 2     |
+| [START](#START)               | 3     |
+
 ```cpp
 enum MessageType : uint8_t {
 	CONNECT      = 0, // Sent when a new player connects to the server
@@ -79,6 +86,14 @@ struct Start {
 
 ### Playing
 
+| TEXT                                  | VALUE |
+|:-------------------------------------:|       |
+| [UPDATE_PROGRESS](#UPDATE_PROGRESS)   | 4     |
+| [PLAYER_COMPLETED](#PLAYER_COMPLETED) | 5     |
+| [PLAYER_EXIT_GAME](#PLAYER_EXIT_GAME) | 6     |
+| [GAME_OVER](#GAME_OVER)               | 7     |
+
+
 ```cpp
 enum MessageType {
 	UPDATE_PROGRESS		= 4	// updating a players progress in the text
@@ -99,6 +114,30 @@ struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
 }
 ```
 
+#### PLAYER_COMPLETED
+
+```cpp
+struct PlayerCompleted {
+	/*TODO*/
+}
+```
+
+#### PLAYER_EXIT_GAME
+
+```cpp
+struct PlayerExitGame {
+	/*TODO*/
+}
+```
+
+#### GAME_OVER
+
+```cpp
+struct GameOver {
+	/*TODO*/
+}
+```
+
 ## Network Communication Documentation - Client -> Server
 
 These are the messages sent to the server by the client
@@ -115,6 +154,11 @@ struct OnConnect {
 ### Waiting
 
 The first byte of every message indicates the type of message it is
+
+| TEXT                         | VALUE |
+|:----------------------------:|       |
+|[TOGGLE_READY](#TOGGLE_READY) | 0     |
+|[CHANGE_NAME](#CHANGE_NAME)   | 1     |
 
 ```cpp
 enum MessageType : uint8_t {
@@ -141,3 +185,6 @@ struct ChangeName {
 };
 ```
 
+### Playing
+
+/*TODO*/
