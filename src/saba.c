@@ -47,7 +47,10 @@ void startGame(ServerSession* server) {
 		session->players[i].progress = 0;
 	}
 	char buffer[MAX_FILE_SIZE];
-	int size = getRandomStringMesg(buffer);
+	buffer[0] = 3;
+	int size = getRandomStringMesg(buffer + 3);
+	buffer[1] = (size >> 8) & 0xFF;
+	buffer[2] = size & 0xFF;
 	broadcastPacket(server, buffer, size);
 }
 
@@ -61,9 +64,9 @@ void updatePlayers(ServerSession* server) {
 			buffer[offset] = i;
 			if (session->players[i].finishTime > 0) {
 				buffer[offset + 1] = 1;
-				buffer[offset + 2] = session->players[i].finishTime >> 24;
-				buffer[offset + 3] = session->players[i].finishTime >> 16;
-				buffer[offset + 4] = session->players[i].finishTime >> 8;
+				buffer[offset + 2] = (session->players[i].finishTime >> 24) & 0xFF;
+				buffer[offset + 3] = (session->players[i].finishTime >> 16) & 0xFF;
+				buffer[offset + 4] = (session->players[i].finishTime >> 8) & 0xFF;
 				buffer[offset + 5] = session->players[i].finishTime & 0xFF;
 				offset += 6;
 			} else if (session->players[i].progress >= 0) {
