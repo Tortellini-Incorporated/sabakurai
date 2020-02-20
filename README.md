@@ -32,7 +32,7 @@ struct Player {
 The first byte of every message indicates the type of message it is
 
 | TEXT                          | VALUE |
-|:-----------------------------:|:-----:|
+|-------------------------------|-------|
 | [CONNECT](#CONNECT)           | 0     |
 | [TOGGLE_READY](#TOGGLE_READY) | 1     |
 | [DISCONNECT](#DISCONNECT)     | 2     |
@@ -78,7 +78,7 @@ struct Start {
 ### Playing
 
 | TEXT                                  | VALUE |
-|:-------------------------------------:|       |
+|---------------------------------------|-------|
 | [UPDATE_PROGRESS](#UPDATE_PROGRESS)   | 4     |
 | [PLAYER_COMPLETED](#PLAYER_COMPLETED) | 5     |
 | [PLAYER_EXIT_GAME](#PLAYER_EXIT_GAME) | 6     |
@@ -136,10 +136,10 @@ struct OnConnect {
 
 The first byte of every message indicates the type of message it is
 
-| TEXT                         | VALUE |
-|:----------------------------:|       |
-|[TOGGLE_READY](#TOGGLE_READY) | 0     |
-|[CHANGE_NAME](#CHANGE_NAME)   | 1     |
+| TEXT                          | VALUE |
+|-------------------------------|-------|
+| [TOGGLE_READY](#TOGGLE_READY) | 0     |
+| [CHANGE_NAME](#CHANGE_NAME)   | 1     |
 
 #### TOGGLE_READY
 
