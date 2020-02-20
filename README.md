@@ -151,7 +151,7 @@ struct GameOver {
 }
 ```
 
-for more details on the Player struct see [ON_CONNECT](ON_CONNECT)
+for more details on the Player struct see [ON_CONNECT](#ON_CONNECT)
 
 
 ## Network Communication Documentation - Client -> Server
