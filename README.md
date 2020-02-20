@@ -4,7 +4,7 @@ The race for bass (and bagel-sama)
 
 ## Network Communication Documentation
 
-Packet data is represented as a struct. The structs are not used in code. They serve only to show the layout of the data in a packet. 
+Packet data is represented as a struct. The structs are not used in code. They serve only to show the layout of the data in a packet. All integers are sent in big endian.
 
 ## Network Communication Documentation - Server -> Client
 
@@ -85,8 +85,10 @@ struct Disconnect {
  - [ ] kurai implemented
 
 ```cpp
-struct Start {//THIS IS INCOMPLETE
+struct Start {
 	const MessageType type = START;
+	uint16_t messageLength;
+	char message[messageLength];
 }
 ```
 
@@ -151,7 +153,7 @@ struct GameOver {
 }
 ```
 
-for more details on the Player struct see [ON_CONNECT](ON_CONNECT)
+for more details on the Player struct see [ON_CONNECT](#ON_CONNECT)
 
 
 ## Network Communication Documentation - Client -> Server
