@@ -1,4 +1,4 @@
-# Sabakurai
+###### Sabakurai
 
 The race for bass (and bagel-sama)
 
@@ -71,11 +71,33 @@ struct Disconnect {
 
 #### START
 
-TBD...
+```cpp
+struct Start {
+	const MessageType type = START;
+}
+```
 
 ### Playing
 
-TBD...
+```cpp
+enum MessageType {
+	UPDATE_PROGRESS		= 4	// updating a players progress in the text
+	PLAYER_COMPLETED	= 5	// a player finished the text
+	PLAYER_EXIT_GAME	= 6	// a player left the session to the waiting room
+	GAME_OVER			= 7	// all players done or quit
+}
+```
+
+#### UPDATE_PROGRESS
+
+```cpp
+struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
+	uint8_t id;				//USER THAT MADE PROGRESS
+	uint8_t state;			//0 = in game, 1 = completed, 2 = waiting
+	uint16_t chracterIndex; //character they are typing
+	uint32_t timeStamp;		//how many ms have passed since the client recieved the start message
+}
+```
 
 ## Network Communication Documentation - Client -> Server
 
