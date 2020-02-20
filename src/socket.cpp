@@ -88,6 +88,7 @@ auto Socket::poll(uint32_t timeout) -> bool {
 auto Socket::read() -> uint8_t {
 	char c;
 	recv(socket, &c, 1, mFlags.flags);
+	file << "C: " << (uint32_t) c << std::endl;
 	return c;
 }
 
