@@ -83,7 +83,8 @@ void updatePlayers(ServerSession* server) {
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: parsing message from [%s], message [%s]\n", session->players[client].name, (char*) data);
+	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length);
+	printf("first byte = %x\n", *((char*)data)); 
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			int nameLength = *((int*) data) & 0xFF;
@@ -114,7 +115,6 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 				}
 			}
 			sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
-			free(msgData);
 
 			msgData = realloc(msgData, 3 + nameLength);
 			msgData[0] = 0;
