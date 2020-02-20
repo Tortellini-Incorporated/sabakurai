@@ -1,10 +1,5 @@
-# Ignore everything
-*
-
-# Don't ignore a few things
-! src/
-! texts/
-! README.md
-! Makefile
-! .gitignore
+out/
+sabakurai
+saba
+debug.log
 
