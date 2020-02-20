@@ -13,7 +13,7 @@ These are the messages sent to the client by the server
 ### ON_CONNECT
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct OnConnect {
