@@ -38,15 +38,6 @@ The first byte of every message indicates the type of message it is
 | [DISCONNECT](#DISCONNECT)     | 2     |
 | [START](#START)               | 3     |
 
-```cpp
-enum MessageType : uint8_t {
-	CONNECT      = 0, // Sent when a new player connects to the server
-	TOGGLE_READY = 1, // Sent when a player changes their ready status
-	DISCONNECT   = 2, // Sent when a player disconnects from the server
-	START        = 3, // Sent when the game is starting
-};
-```
-
 #### CONNECT
 
 ```cpp
@@ -93,21 +84,11 @@ struct Start {
 | [PLAYER_EXIT_GAME](#PLAYER_EXIT_GAME) | 6     |
 | [GAME_OVER](#GAME_OVER)               | 7     |
 
-
-```cpp
-enum MessageType {
-	UPDATE_PROGRESS		= 4	// updating a players progress in the text
-	PLAYER_COMPLETED	= 5	// a player finished the text
-	PLAYER_EXIT_GAME	= 6	// a player left the session to the waiting room
-	GAME_OVER			= 7	// all players done or quit
-}
-```
-
 #### UPDATE_PROGRESS
 
 ```cpp
 struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
-	uint8_t id;				//USER THAT MADE PROGRESS
+	uint8_t id;				//user who made progress
 	uint8_t state;			//0 = in game, 1 = completed, 2 = waiting
 	uint16_t chracterIndex; //character they are typing
 	uint32_t timeStamp;		//how many ms have passed since the client recieved the start message
@@ -159,13 +140,6 @@ The first byte of every message indicates the type of message it is
 |:----------------------------:|       |
 |[TOGGLE_READY](#TOGGLE_READY) | 0     |
 |[CHANGE_NAME](#CHANGE_NAME)   | 1     |
-
-```cpp
-enum MessageType : uint8_t {
-	TOGGLE_READY = 0, // Change the ready status of the client
-	CHANGE_NAME  = 1, // Changes the name of the client
-};
-```
 
 #### TOGGLE_READY
 
