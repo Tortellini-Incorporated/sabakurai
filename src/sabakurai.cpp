@@ -167,7 +167,7 @@ int32_t main(int32_t argc, char ** argv) {
 			}
 		}
 	} catch (const std::string & message) {
-		std::cerr << message << std::endl;
+		file << "[ERROR] " << message << std::endl;
 		return -1;
 	}
 
