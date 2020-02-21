@@ -8,12 +8,12 @@ std::ofstream file("debug-test.log");
 int main() {
 	Box root = { "Test 4" };
 
-	hline(ACS_ULCORNER, 5);
-	vline(ACS_LLCORNER, 5);
+	root.horz_line(5, ACS_ULCORNER);
+	root.vert_line(5, ACS_LLCORNER);
 
-	refresh();
+	root.refresh();
 
-	getch();
+	root.get_char();
 
 	return 0;
 }
