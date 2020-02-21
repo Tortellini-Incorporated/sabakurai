@@ -43,6 +43,8 @@ auto Box::set_name(const std::string & name) -> void {
 }
 
 auto Box::draw() -> Window& {
+	move(1, 0).horz_line(internal.width  - 2, ACS_HLINE);
+	move(0, 1).vert_line(internal.height - 2, ACS_VLINE);
 	/*if (internal.width > 0 && internal.height > 0) {
 		if (internal.height == 1) {
 			move(0, 0).horz_line(internal.width, ACS_HLINE);
@@ -68,12 +70,10 @@ auto Box::draw() -> Window& {
 				move(1, 0).print(" %s... ", name.substr(0, internal.width - 7).c_str());
 			}
 		}
-	}
+	}*/
 	if (child != 0) {
 		child->draw();
-	}*/
-	move(1, 1).horz_line(5, ACS_HLINE);
-	move(3, 3).vert_line(5, ACS_VLINE);
+	}
 	return *this;
 }
 
