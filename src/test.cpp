@@ -14,7 +14,7 @@ int main() {
 	mvaddch(5, 5, ACS_HLINE);
 	mvaddch(6, 6, ACS_VLINE);
 
-	root.refresh();
+	refresh();
 
 	root.get_char();
 
