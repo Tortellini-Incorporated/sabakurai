@@ -11,7 +11,7 @@ int main() {
 	root.move(1, 1).horz_line(5, ACS_ULCORNER);
 	root.move(5, 5).vert_line(5, ACS_LLCORNER);
 
-	root.refresh();
+	root.draw().refresh();
 
 	root.get_char();
 
