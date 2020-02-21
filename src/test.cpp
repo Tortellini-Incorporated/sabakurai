@@ -6,15 +6,12 @@
 std::ofstream file("debug-test.log");
 
 int main() {
-	Box root = { "Test 9" };
+	Box root = { "Test F (Test 5++)" };
 
-	mvhline(2, 1, 'C', root.width()  - 2);
-	root.move(1, 1).horz_line(root.width() - 2, 'C');
+	root.move(1, 1).horz_line(5, ACS_ULCORNER);
+	root.move(3, 3).vert_line(5, ACS_LLCORNER);
 
-	mvaddch(5, 5, ACS_HLINE);
-	mvaddch(6, 6, ACS_VLINE);
-
-	refresh();
+	root.refresh();
 
 	root.get_char();
 
