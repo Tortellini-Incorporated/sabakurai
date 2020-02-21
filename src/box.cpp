@@ -44,20 +44,20 @@ auto Box::set_name(const std::string & name) -> void {
 
 auto Box::draw() -> Window& {
 	if (internal.width > 0 && internal.height > 0) {
-		file << "WH: " << internal.width << ", " << internal.height << std::endl;
 		if (internal.height == 1) {
 			move(0, 0).horz_line(internal.width, ACS_HLINE);
 		} else if (internal.width == 1) {
 			move(0, 0).vert_line(internal.height, ACS_VLINE);
 		} else {
+			file << "WH: " << internal.width << ", " << internal.height << std::endl;
 			move(0,                  0                  ).add_char(ACS_ULCORNER);
 			move(internal.width - 1, 0                  ).add_char(ACS_URCORNER);
 			move(0,                  internal.height - 1).add_char(ACS_LLCORNER);
 			move(internal.width - 1, internal.height - 1).add_char(ACS_LRCORNER);
-			move(1,                  0                  ).horz_line(internal.width  - 2, ACS_HLINE);
+			/*move(1,                  0                  ).horz_line(internal.width  - 2, ACS_HLINE);
 			move(1,                  internal.height - 1).horz_line(internal.width  - 2, ACS_HLINE);
 			move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
-			move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);
+			move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);*/
 		}
 		if (name.size() > 0) {
 			if (name.size() + 6 <= internal.width && internal.height > 1) {
