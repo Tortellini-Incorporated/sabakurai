@@ -167,6 +167,16 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			} else if (msg == 1) {//CHANGE_NAME
 				/*TODO*/
 				int nameLen = ((char*) data)[1];
+				session->players[client].name = realloc(session->players[client].name, nameLen * sizeof(char));
+				memcpy(session->players[client].name, ((char*) data) + 2, nameLen);
+
+				char* scratch = malloc(sizeof(char) * (nameLen + 3));
+				scratch[0] = 8;
+				scratch[1] = client;
+				scratch[2] = nameLen;
+				memcpy(scratch + 3, session->players[client].name, nameLen);
+				free(scratch);
+	
 				data = ((char*) data) + nameLen + 2;
 				length -= nameLen + 2;
 			}

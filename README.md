@@ -40,6 +40,7 @@ The first byte of every message indicates the type of message it is
 | [TOGGLE_READY](#TOGGLE_READY) | 1     |
 | [DISCONNECT](#DISCONNECT)     | 2     |
 | [START](#START)               | 3     |
+| [UPDATE_NAME](#UPDATE_NAME)   | 8     |
 
 #### CONNECT
 
@@ -89,6 +90,20 @@ struct Start {
 	const MessageType type = START;
 	uint16_t messageLength;
 	char message[messageLength];
+}
+```
+
+#### UPDATE_NAME
+
+ - [x] saba implemented
+ - [ ] kurai implemented
+
+```cpp
+struct UpdateName {
+	const MessageType type = UPDATE_NAME;
+	uint8_t id;				// id of the player who changed their name
+	uint8_t length;			// length of the players new name
+	char newName[length];	// new name of the player
 }
 ```
 
@@ -194,7 +209,7 @@ struct ToggleReady {
 
 #### CHANGE_NAME
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
