@@ -43,7 +43,7 @@ auto Box::set_name(const std::string & name) -> void {
 }
 
 auto Box::draw() -> Window& {
-	if (internal.width > 0 && internal.height > 0) {
+	/*if (internal.width > 0 && internal.height > 0) {
 		if (internal.height == 1) {
 			move(0, 0).horz_line(internal.width, ACS_HLINE);
 		} else if (internal.width == 1) {
@@ -71,7 +71,9 @@ auto Box::draw() -> Window& {
 	}
 	if (child != 0) {
 		child->draw();
-	}
+	}*/
+	move(1, 1).horz_line(5, ACS_HLINE);
+	move(3, 3).vert_line(5, ACS_VLINE);
 	return *this;
 }
 
