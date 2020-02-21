@@ -54,10 +54,10 @@ auto Box::draw() -> Window& {
 			move(internal.width - 1, 0                  ).add_char(ACS_URCORNER);
 			move(0,                  internal.height - 1).add_char(ACS_LLCORNER);
 			move(internal.width - 1, internal.height - 1).add_char(ACS_LRCORNER);
-			/*move(1,                  0                  ).horz_line(internal.width  - 2, ACS_HLINE);
-			move(1,                  internal.height - 1).horz_line(internal.width  - 2, ACS_HLINE);
-			move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
-			move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);*/
+			move(1,                  0                  ).horz_line(internal.width  - 2, ACS_HLINE);
+			//move(1,                  internal.height - 1).horz_line(internal.width  - 2, ACS_HLINE);
+			//move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
+			//move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);
 		}
 		if (name.size() > 0) {
 			if (name.size() + 6 <= internal.width && internal.height > 1) {
