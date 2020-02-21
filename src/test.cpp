@@ -6,14 +6,14 @@
 std::ofstream file("debug-test.log");
 
 int main() {
-	initscr();
+	Box root = { "Test 4" };
 
 	hline(ACS_ULCORNER, 5);
 	vline(ACS_LLCORNER, 5);
 
-	getch();
+	refresh();
 
-	endwin();
+	getch();
 
 	return 0;
 }
