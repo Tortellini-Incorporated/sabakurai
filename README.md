@@ -120,6 +120,7 @@ struct RelayMessage {
 	uint16_t length;						// length of the data
 	char message[length];					// message
 }
+```
 
 ### Playing
 
