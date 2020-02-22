@@ -43,11 +43,7 @@ auto Box::set_name(const std::string & name) -> void {
 }
 
 auto Box::draw() -> Window& {
-	for (auto i = 0; i < internal.height; ++i) {
-		mvwhline(internal.window, i, 0, ACS_HLINE, i + 1);
-		//move(0, i).horz_line(i + 1, ACS_HLINE);
-	}
-	/*if (internal.width > 0 && internal.height > 0) {
+	if (internal.width > 0 && internal.height > 0) {
 		if (internal.height == 1) {
 			move(0, 0).horz_line(internal.width, ACS_HLINE);
 		} else if (internal.width == 1) {
@@ -59,9 +55,9 @@ auto Box::draw() -> Window& {
 			move(0,                  internal.height - 1).add_char(ACS_LLCORNER);
 			move(internal.width - 1, internal.height - 1).add_char(ACS_LRCORNER);
 			move(1,                  0                  ).horz_line(internal.width  - 2, ACS_HLINE);
-			//move(1,                  internal.height - 1).horz_line(internal.width  - 2, ACS_HLINE);
-			//move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
-			//move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);
+			move(1,                  internal.height - 1).horz_line(internal.width  - 2, ACS_HLINE);
+			move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
+			move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);
 		}
 		if (name.size() > 0) {
 			if (name.size() + 6 <= internal.width && internal.height > 1) {
@@ -72,7 +68,7 @@ auto Box::draw() -> Window& {
 				move(1, 0).print(" %s... ", name.substr(0, internal.width - 7).c_str());
 			}
 		}
-	}*/
+	}
 	if (child != 0) {
 		child->draw();
 	}
