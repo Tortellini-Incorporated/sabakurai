@@ -34,13 +34,14 @@ struct Player {
 
 The first byte of every message indicates the type of message it is
 
-| TYPE                          | VALUE |
-|-------------------------------|-------|
-| [CONNECT](#CONNECT)           | 0     |
-| [TOGGLE_READY](#TOGGLE_READY) | 1     |
-| [DISCONNECT](#DISCONNECT)     | 2     |
-| [START](#START)               | 3     |
-| [UPDATE_NAME](#UPDATE_NAME)   | 8     |
+| TYPE                            | VALUE |
+|---------------------------------|-------|
+| [CONNECT](#CONNECT)             | 0     |
+| [TOGGLE_READY](#TOGGLE_READY)   | 1     |
+| [DISCONNECT](#DISCONNECT)       | 2     |
+| [START](#START)                 | 3     |
+| [UPDATE_NAME](#UPDATE_NAME)     | 8     |
+| [RELAY_MESSAGE](#RELAY_MESSAGE) | 9     |
 
 #### CONNECT
 
@@ -49,10 +50,10 @@ The first byte of every message indicates the type of message it is
 
 ```cpp
 struct Connect {
-	const MessageType type = CONNECT;
-	uint8_t id;                // The id of the player connecting
-	uint8_t name_length;       // The length of the player's name in bytes
-	uint8_t name[name_length]; // The player's name
+	const MessageType type = CONNECT;	// 0
+	uint8_t id;							// The id of the player connecting
+	uint8_t name_length;				// The length of the player's name in bytes
+	uint8_t name[name_length];			// The player's name
 };
 ```
 
@@ -63,8 +64,8 @@ struct Connect {
 
 ```cpp
 struct ToggleReady {
-	const MessageType type = TOGGLE_READY;
-	uint8_t id; // The id of the player that changed their ready state
+	const MessageType type = TOGGLE_READY;	// 1
+	uint8_t id;								// The id of the player that changed their ready state
 };
 ```
 
@@ -75,8 +76,8 @@ struct ToggleReady {
 
 ```cpp
 struct Disconnect {
-	const MessageType type = DISCONNECT;
-	uint8_t id; // The id of the player that disconnected
+	const MessageType type = DISCONNECT;	// 2
+	uint8_t id;								// The id of the player that disconnected
 };
 ```
 
@@ -87,7 +88,7 @@ struct Disconnect {
 
 ```cpp
 struct Start {
-	const MessageType type = START;
+	const MessageType type = START;	// 3
 	uint16_t messageLength;
 	char message[messageLength];
 }
@@ -100,12 +101,25 @@ struct Start {
 
 ```cpp
 struct UpdateName {
-	const MessageType type = UPDATE_NAME;
-	uint8_t id;				// id of the player who changed their name
-	uint8_t length;			// length of the players new name
-	char newName[length];	// new name of the player
+	const MessageType type = UPDATE_NAME;	// 8
+	uint8_t id;								// id of the player who changed their name
+	uint8_t length;							// length of the players new name
+	char newName[length];					// new name of the player
 }
 ```
+
+#### RELAY_MESSAGE
+
+ - [ ] saba implemented
+ - [ ] kurai implemented
+
+```cpp
+struct RelayMessage { 
+	const MessageType type = RELAY_MESSAGE;	// 9
+	uint8_t id;								// id of the player who sent the message
+	uint16_t length;						// length of the data
+	char message[length];					// message
+}
 
 ### Playing
 
@@ -118,7 +132,7 @@ struct UpdateName {
 
 #### UPDATE_PROGRESS
 
- - [x] saba implemented
+ - [ ] saba implemented
  - [ ] kurai implemented
 
 ```cpp
@@ -127,6 +141,12 @@ struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
 	uint8_t id;				//user who made progress
 	uint8_t state;			//0 = in game, 1 = completed, 2 = waiting
 	uint16_t chracterIndex; //character they are typing
+}
+
+struct UpdateProgress {	//not implemented yet
+	const MessageType type = UPDATE_PROGRESS;	// 4
+	uint8_t id;									// player who made progress
+	uint16_t progress;							// new index they are at
 }
 ```
 
@@ -137,9 +157,9 @@ struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
 
 ```cpp
 struct PlayerCompleted {
-	const MessageType type = PLAYER_COMPLETED;
-	uint8_t id;
-	uint32_t time;
+	const MessageType type = PLAYER_COMPLETED;	// 5
+	uint8_t id;									//
+	uint32_t time;								//
 }
 ```
 
@@ -150,8 +170,8 @@ struct PlayerCompleted {
 
 ```cpp
 struct PlayerExitGame {
-	const MessageType type = PLAYER_EXIT_GAME;
-	uint8_t id;
+	const MessageType type = PLAYER_EXIT_GAME;	// 6
+	uint8_t id;									//
 }
 ```
 
@@ -162,7 +182,7 @@ struct PlayerExitGame {
 
 ```cpp
 struct GameOver {
-	const MessageType type = GAME_OVER;
+	const MessageType type = GAME_OVER;	// 7
 	uint8_t numPlayers;					// number of players in the lobby
 	Player players[numPlayers];			// this array includes _all_ players, including the one recieving the message
 }
@@ -195,6 +215,7 @@ The first byte of every message indicates the type of message it is
 |-------------------------------|-------|
 | [TOGGLE_READY](#TOGGLE_READY) | 0     |
 | [CHANGE_NAME](#CHANGE_NAME)   | 1     |
+| [SEND_MESSAGE](#SEND_MESSAGE) | 5     |
 
 #### TOGGLE_READY
 
@@ -203,7 +224,7 @@ The first byte of every message indicates the type of message it is
 
 ```cpp
 struct ToggleReady {
-	const MessageType type = TOGGLE_READY;
+	const MessageType type = TOGGLE_READY;	// 0
 };
 ```
 
@@ -214,10 +235,23 @@ struct ToggleReady {
 
 ```cpp
 struct ChangeName {
-	const MessageType type = CHANGE_NAME;
+	const MessageType type = CHANGE_NAME;	// 1
 	uint8_t name_length;					// The length of the client's name in bytes
 	uint8_t name[name_length];				// The name of the client
 };
+```
+
+#### SEND_MESSAGE
+
+ - [x] saba implemented
+ - [ ] kurai imeplemented
+
+```cpp
+struct SendMessage {
+	const MessageType type = SEND_MESSAGE;	// 5
+	uint16_t length;						//
+	char message[length];					//
+}
 ```
 
 ### Playing
@@ -235,8 +269,8 @@ struct ChangeName {
 
 ```cpp
 struct SendProgress {
-	const MessageType = SEND_PROGRESS;
-	uint16_t characterIndex;
+	const MessageType = SEND_PROGRESS;	// 2
+	uint16_t characterIndex;			// 
 };
 ```
 
@@ -247,8 +281,8 @@ struct SendProgress {
 
 ```cpp
 struct CompletedText {
-	const MessageType = COMPLETED_TEXT;
-	uint32_t time;
+	const MessageType = COMPLETED_TEXT;	// 3
+	uint32_t time;						// 
 }
 ```
 
@@ -259,7 +293,7 @@ struct CompletedText {
 
 ```cpp
 struct ExitToLobby {
-	const MessageType = EXIT_TO_LOBBY;
+	const MessageType = EXIT_TO_LOBBY;	// 4
 }
 ```
 
