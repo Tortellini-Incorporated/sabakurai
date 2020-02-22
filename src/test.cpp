@@ -6,19 +6,17 @@
 std::ofstream file("debug-test.log");
 
 int main() {
-	Box root = { "Test F (Test 5++)" };
+	//Box root = { "Test F (Test 5++)" };
+	initscr();
 
-	for (auto i = 0; i < 20; ++i) {
+	for (auto i = 0; i < 30; ++i) {
 		mvhline(i, 0, ACS_HLINE, i + 1);
 	}
 	refresh();
 
 	getch();
 
-	root.draw().refresh();
-
-	root.get_char();
-
+	endwin();
 	return 0;
 }
 
