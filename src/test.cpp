@@ -11,10 +11,10 @@ int main() {
 
 	for (auto i = 0; i < 30; ++i) {
 		mvhline(i, 0, ACS_HLINE, i + 1);
+		getch();
 	}
 	refresh();
 
-	getch();
 
 	endwin();
 	return 0;
