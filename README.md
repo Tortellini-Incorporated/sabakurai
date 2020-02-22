@@ -110,7 +110,7 @@ struct UpdateName {
 
 #### RELAY_MESSAGE
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
