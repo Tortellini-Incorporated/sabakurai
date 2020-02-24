@@ -18,10 +18,10 @@ class Window {
 		} internal;
 
 		auto root_get_char(const Window & window) -> uint32_t;
-		virtual auto component_resize() -> void;
 
 	public:
 		auto window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> void;
+		virtual auto component_resize() -> void;
 
 		Window();
 		Window(Window & root, bool dummy);

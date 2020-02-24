@@ -7,12 +7,12 @@
 
 class Box : public Window {
 	protected:
-		virtual auto component_resize() -> void;
-
 		std::string name;
 		Window * child;
 
 	public:
+		virtual auto component_resize() -> void;
+
 		Box(const std::string & name);
 		Box(Window & root, const std::string & name);
 		Box(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height, const std::string & name);

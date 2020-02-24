@@ -10,7 +10,6 @@ class Split : public Window {
 		enum SplitDirection { HORZ, VERT };
 
 	protected:
-		virtual auto component_resize() -> void;
 
 		using LocationCallback = std::function<uint32_t(uint32_t, uint32_t, uint32_t, uint32_t)>;
 		
@@ -20,6 +19,8 @@ class Split : public Window {
 		Window * second_child;
 
 	public:
+		virtual auto component_resize() -> void;
+		
 		Split(LocationCallback split_location, SplitDirection direction);
 		Split(Window & root, LocationCallback split_location, SplitDirection direction);
 		Split(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height, LocationCallback split_location, SplitDirection direction);
