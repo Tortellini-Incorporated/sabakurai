@@ -6,6 +6,7 @@ extern std::ofstream file;
 
 auto Window::root_get_char(const Window & window) -> uint32_t {
 	auto c = ::wgetch(window.internal.window);
+	file << "Key Name: " << keyname(c) << ", " << c << std::endl;
 	while (c == KEY_RESIZE) {
 		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, internal.root };
 		component_resize();
@@ -22,6 +23,7 @@ auto Window::window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t heig
 	internal = {
 		x, y, width, height, ::newwin(height, width, y, x), internal.root
 	};
+	keypad(internal.window, TRUE);
 	component_resize();
 }
 
@@ -32,6 +34,7 @@ Window::Window() {
 	internal = {
 		0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, this
 	};
+	keypad(internal.window, TRUE);
 }
 
 Window::Window(Window & root, bool dummy) :
@@ -40,7 +43,9 @@ Window::Window(Window & root, bool dummy) :
 Window::Window(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
 	internal{
 		x, y, width, height, ::newwin(height, width, y, x), &root
-	} {}
+	} {		
+	keypad(internal.window, TRUE);
+}
 
 Window::Window(Window && window) :
 	internal{window.internal} {

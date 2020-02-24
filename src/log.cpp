@@ -26,16 +26,17 @@ auto Log::scroll_up(uint32_t amount) -> void {
 		auto & message = log[i];
 		auto start = uint32_t{};
 		auto end   = uint32_t{};
-		while (++end <= message.message.size()) {
-			if (message.message[end] == '\n') {
+		while (end <= message.message.size()) {
+			if (end == message.message.size()) {
 				++lines;
-				start = ++end;
+			} else if (message.message[end] == '\n') {
+				++lines;
+				start = end + 1;
 			} else if (end - start >= internal.width - 4 * (start > message.author_length)) {
 				++lines;
 				start = end;
-			} else if (end == message.message.size()) {
-				++lines;
 			}
+			++end;
 		}
 	}
 	if (lines > internal.height) {
@@ -79,53 +80,55 @@ auto Log::message(const std::string & author, const std::string & message) -> vo
 }
 
 auto Log::draw() -> Window& {
-	struct Line {
-		uint32_t message_index;
-		uint32_t begin;
-		uint32_t length;
-		bool     indent;
-	};
+	if (internal.width > 0 && internal.height > 0) {
+		struct Line {
+			uint32_t message_index;
+			uint32_t begin;
+			uint32_t length;
+			bool     indent;
+		};
 
-	auto lines = std::stack<Line>();
-	for (auto i = uint32_t{ 0 }; i < log.size(); ++i) {
-		auto & message = log[i];
-		auto start = uint32_t{};
-		auto end   = uint32_t{};
-		while (++end <= message.message.size()) {
-			if (message.message[end] == '\n') {
-				lines.push({ i, start, end - start, start > message.author_length });
-				start = ++end;
-			} else if (end - start >= internal.width - 4 * (start > message.author_length)) {
-				lines.push({ i, start, end - start, start > message.author_length });
-				start = end;
-			} else if (end == message.message.size()) {
-				lines.push({ i, start, end - start, start > message.author_length });
+		auto lines = std::stack<Line>();
+		for (auto i = uint32_t{ 0 }; i < log.size(); ++i) {
+			auto & message = log[i];
+			auto start = uint32_t{};
+			auto end   = uint32_t{};
+			while (++end <= message.message.size()) {
+				if (message.message[end] == '\n') {
+					lines.push({ i, start, end - start, start > message.author_length });
+					start = ++end;
+				} else if (end - start >= internal.width - 4 * (start > message.author_length)) {
+					lines.push({ i, start, end - start, start > message.author_length });
+					start = end;
+				} else if (end == message.message.size()) {
+					lines.push({ i, start, end - start, start > message.author_length });
+				}
 			}
 		}
-	}
-	for (auto i = 0; lines.size() > 0 && i < offset; ++i) {
-		lines.pop();
-	}
-
-	for (auto i = uint32_t{ 0 }; i < internal.height; ++i) {
-		move(0, i).horz_line(internal.width, ' ');
-	}
-	auto i = int32_t( lines.size() ) - 1;
-	if (i > internal.height - 1) {
-		i = internal.height - 1;
-	}
-	for (; i >= 0; --i) {
-		auto & line = lines.top();
-		if (line.length > 0) {
-			auto & message = log[line.message_index];
-			auto out = std::string();
-			if (line.indent) {
-				out.append("    ");
-			}
-			out.append(message.message.substr(line.begin, line.length));
-			move(0, i).print("%s", out.c_str());
+		for (auto i = 0; i < offset; ++i) {
+			lines.pop();
 		}
-		lines.pop();
+
+		for (auto i = uint32_t{ 0 }; i < internal.height; ++i) {
+			move(0, i).horz_line(internal.width, ' ');
+		}
+		auto i = int32_t( lines.size() ) - 1;
+		if (i > int32_t( internal.height ) - 1) {
+			i = internal.height - 1;
+		}
+		for (; i >= 0; --i) {
+			auto & line = lines.top();
+			if (line.length > 0) {
+				auto & message = log[line.message_index];
+				auto out = std::string();
+				if (line.indent) {
+					out.append("    ");
+				}
+				out.append(message.message.substr(line.begin, line.length));
+				move(0, i).print("%s", out.c_str());
+			}
+			lines.pop();
+		}
 	}
 	return *this;
 }
