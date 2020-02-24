@@ -2,6 +2,8 @@
 #include <ncurses.h>
 #include <iostream>
 #include <fstream>
+#include <vector>
+#include <functional>
 
 #include "socket.hpp"
 
@@ -10,35 +12,17 @@
 #include "title.hpp"
 #include "player_list.hpp"
 #include "log.hpp"
-#include "command_prompt.hpp"
 
 std::ofstream file("debug.log");
 
-using LogCallback = std::function<void(uint32_t color, const std::string & message)>;
+using LogCallback = std::function<void(uint32_t color, const std::string & message);
 
 struct Command {
 	std::string name;
 	std::function<void(const std::vector<std::string> & args)> callback;
-
-	auto matches(const std::string & raw, uint32_t end) const -> bool {
-		if (end != name.size() + 1) {
-			return false;
-		}
-		auto i = 1;
-		for (; i < end; ++i) {
-			if (raw[i] != name[i - 1]) {
-				return false;
-			}
-		}
-		if (i != end) {
-			return false;
-		} else {
-			return true;
-		}
-	}
 };
 
-void dispatch_command(const std::string & raw, const std::vector<Command> & commands, LogCallback error);
+void dispatch_command(const std::string & raw, const std::vector<Command> & commands);
 std::vector<std::string> get_args(int32_t start, const std::string & raw);
 
 int32_t main(int32_t argc, char ** argv) {
@@ -67,8 +51,10 @@ int32_t main(int32_t argc, char ** argv) {
 
 	cbreak();
 	noecho();
-
-	file << "Wat" << std::endl;
+	keypad(stdscr, TRUE);
+	if (curs_set(0)) {
+		file << "Awwww man it's cursor time :(" << std::endl;
+	}
 
 	Split split = {
 		root,
@@ -77,35 +63,22 @@ int32_t main(int32_t argc, char ** argv) {
 		},
 		Split::HORZ
 	};
-	file << "Wat2" << std::endl;
 
 	Box titleBox = { root, "" };
 	Title title = { root, true };
 	titleBox.set_child(&title);
 
-	file << "Wat3" << std::endl;
 	Box playerBox = { root, "Players" };
 	PlayerList players = { root, true };
 	playerBox.set_child(&players);
-	file << "Wat4" << std::endl;
 
 	Box logBox = { root, "Log" };
 	Log log = { root, true };
-	log.message("C1FR1", "\nstruct Fact {\n\tconst static char * fact = \"Carrot is the superior vegetable. It's high in orange color concentrate giving it a distinctly carrot colored look. Anyone caught not liking carrots will be purged from this world immediately without hesitation. Thanks and have fun!\";\n};");
-	log.message("Gnarwhal", "f");
-	log.message("Gnarwhal", "i");
-	log.message("Gnarwhal", "n");
-	log.message("Gnarwhal", "n");
-	log.message("Gnarwhal", "a");
 	logBox.set_child(&log);
 
-	file << "Wat5" << std::endl;
 	Box commandBox = { root, "Command" };
-	CommandPrompt command = { root, true };
-	file << "Hello there" << std::endl;
-	commandBox.set_child(&command);
-
-	file << "Command prompt inited" << std::endl;
+//	CommandPrompt command = { root, true };
+//	commandBox.set_child(&command);
 
 	Split split2 = {
 		root,
@@ -117,22 +90,20 @@ int32_t main(int32_t argc, char ** argv) {
 	Split split3 = {
 		root,
 		[&command](uint32_t x, uint32_t y, uint32_t width, uint32_t height) -> uint32_t {
-			if (command.line_count() + 2 > height - (height * (3.0 / 4.0))) {
-				return height * (3.0 / 4.0);
-			} else {
-				return height - command.line_count() - 2;
-			}
+			return height - 1 - 2;
 		},
 		Split::HORZ
 	};
-	file << "Setting children :snatch:" << std::endl;
 	split3.set_children(&logBox, &commandBox);
 	split2.set_children(&split3, &playerBox);
 	split.set_children(&titleBox, &split2);
 	root.set_child(&split);
-	
-	file << "Tryna draw" << std::endl;
+
 	root.draw().refresh();
+
+	auto logger = [&log](uint32_t color, const std::string & message) -> void {
+		log.message(message);
+	}
 
 	try {
 		Socket socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -159,59 +130,22 @@ int32_t main(int32_t argc, char ** argv) {
 			socket.width(Socket::U8) >> name;
 			players.add_player(id, 0, ready, name);
 		}
-		auto & self = players.get_player(my_id);
 		players.draw().refresh();
-		
-		bool quit = false;
-
-		////// COMMANDS //////
-
-		auto log_callback = [&log](uint32_t color, const std::string & string) -> void {
-			log.message(string);
-			log.draw().refresh();
-		};
-
-		auto commands = std::vector<Command>{
-			Command{
-				"say",
-				[&self, &log](const std::vector<std::string> & args) -> void {
-					auto message = std::string();
-					for (auto i = 0; i < args.size(); ++i) {
-						message.append(args[i]);
-						if (i < args.size()) {
-							message.append(1, ' ');
-						}
-					}
-					log.message(self.name, message);
-					log.draw().refresh();
-				}
-			},
-			Command{
-				"quit",
-				[&quit](const std::vector<std::string> & args) -> void {
-					quit = true;
-				}
-			}
-		};
 
 		file << "Looping..." << std::endl;
 
+		bool quit = false;
 		while (!quit) {
-			if (command.update()) {
-				if (command.complete()) {
-					dispatch_command(command.get(), commands, log_callback);
-					command.clear_command();
-				}
+			command.update();
+			if (command.should_redraw()) {
+				command.draw().refresh();
 				if (command.height_change()) {
 					split3.component_resize();
-					logBox.draw();
-					commandBox.draw();
-					split3.refresh();
-				} else {
-					command.draw().refresh();
+				}
+				if (command.is_complete()) {
+					dispatch_command(command.get(), command_list, logger);
 				}
 			}
-			split3.refresh();
 			constexpr static uint8_t
 				CONNECT      = 0x00,
 				TOGGLE_READY = 0x01,
@@ -224,10 +158,8 @@ int32_t main(int32_t argc, char ** argv) {
 						auto id   = uint32_t( socket.read() );
 						auto name = std::string();
 						socket.width(Socket::U8) >> name;
-						if (id != my_id) {
-							players.add_player(id, 0, false, name);
-							players.draw().refresh();
-						}
+						players.add_player(id, 0, false, name);
+						players.draw().refresh();
 						break;
 					}
 					case TOGGLE_READY: {
@@ -251,7 +183,6 @@ int32_t main(int32_t argc, char ** argv) {
 					}
 				}
 			}
-			command.move_cursor();
 		}
 	} catch (const std::string & message) {
 		file << "[ERROR] " << message << std::endl;
@@ -262,34 +193,31 @@ int32_t main(int32_t argc, char ** argv) {
 }
 
 void dispatch_command(const std::string & raw, const std::vector<Command> & commands, LogCallback error) {
-	file << "Dispatching: " << raw << std::endl;
 	if (raw.size() > 0) {
-		if (raw[0] != '/') {
-			commands[0].callback(get_args(0, raw));
-		} else if (raw.size() > 1 && raw[1] == '/') {
-			commands[0].callback(get_args(2, raw));
+		if (raw[0] != '/' || (raw.size() > 1 && raw[1] == '/')) {
+
 		} else {
 			auto end = 0;
 			while (++end < raw.size() && raw[end] != ' ');
 
 			auto i = 0;
-			for (; i < commands.size(); ++i) {
-				if (commands[i].matches(raw, end)) {
-					commands[i].callback(get_args(end + 1, raw));
+			for (i < commands.size(); ++i) {
+				if (commands[i].matches(raw, end) {
+					commands.callback(get_args(end + 1, raw));
 					break;
 				}
 			}
 			
 			if (i == commands.size()) {
 				auto error_message = std::string("Undefined command '").append(raw, 0, end).append(1, '\'');
-				error(0x00, error_message);
+				error(0x00, message);
 			}
 		}
 	}
 }
 
 std::vector<std::string> get_args(int32_t start, const std::string & raw) {
-	auto args = std::vector<std::string>{};
+	auto args = std::vector<std::string{};
 	auto quoted = false;
 	auto consume_next = false;
 	auto arg = std::string();
@@ -301,7 +229,7 @@ std::vector<std::string> get_args(int32_t start, const std::string & raw) {
 			consume_next = true;
 		} else if (raw[i] == '"') {
 			quoted = !quoted;
-		} else if (raw[i] == ' ' && !quoted) {
+		} else if (raw[i] = ' ' && !quoted) {
 			args.push_back(std::move(arg));
 			arg = std::string();
 		} else {
@@ -311,4 +239,3 @@ std::vector<std::string> get_args(int32_t start, const std::string & raw) {
 	args.push_back(std::move(arg));
 	return args;
 }
-
