@@ -83,8 +83,7 @@ void updatePlayers(ServerSession* server) {
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length);
-	printf("first byte = %x\n", *((char*)data)); 
+	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length); 
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			int nameLength = *((int*) data) & 0xFF;
@@ -94,18 +93,19 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
 
 			char* msgData;
+
 			int total_message_len = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
-				if (server->clients[i] && i != client && session->players[i].name) {
+				if ((server->clients[i] || i == client) && session->players[i].name) {
 					total_message_len += 3 + strlen(session->players[i].name);
 				}
 			}
 			msgData = malloc(total_message_len * sizeof(char));
 			msgData[0] = client;
-			msgData[1] = session->numPlayers;
+			msgData[1] = session->numPlayers + 1;
 			int index = 2;
 			for (int i = 0; i < server->maxClients; ++i) {
-				if (server->clients[i] && i != client && session->players[i].name) {
+				if ((server->clients[i] || i == client) && session->players[i].name) {
 					size_t name_len = strlen(session->players[i].name) * sizeof(char);
 					msgData[index++] = i;
 					msgData[index++] = session->players[i].progress + 1;
@@ -154,7 +154,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 					session->players[client].progress = -1;
 					--session->numReady;
 				}
-				printf("debug: %s toggled ready, now %d", session->players[client].name, session->players[client].progress + 1);
+				printf("debug: %s toggled ready, now %d\n", session->players[client].name, session->players[client].progress + 1);
 				char sdata[2];
 				sdata[0] = 1;
 				sdata[1] = client;
