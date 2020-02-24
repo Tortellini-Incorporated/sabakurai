@@ -1,7 +1,6 @@
 #ifndef SABAKURAI_LOG
 #define SABAKURAI_LOG
 
-#include <mutex>
 #include <vector>
 #include <string>
 
@@ -10,13 +9,14 @@
 class Log : public Window {
 	protected:
 		struct Message {
-			bool authored;
-			std::string author;
+			uint32_t    author_length;
 			std::string message;
 		};
 
-		std::mutex mutex;
 		std::vector<Message> log;
+
+		auto message_height(uint32_t message_index) -> uint32_t;
+		auto get_line(uint32_t message_index, std::string & write, uint32_t line) -> bool;
 
 	public:
 		Log();

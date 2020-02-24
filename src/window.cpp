@@ -7,7 +7,7 @@ extern std::ofstream file;
 auto Window::root_get_char(const Window & window) -> uint32_t {
 	auto c = ::wgetch(window.internal.window);
 	while (c == KEY_RESIZE) {
-		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr };
+		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, internal.root };
 		component_resize();
 		clear().draw().refresh();
 		c = ::wgetch(window.internal.window);
@@ -122,7 +122,7 @@ auto Window::window() -> WINDOW* {
 }
 
 auto Window::block(bool value) -> void {
-	::nodelay(Window::internal.window, !value);
+	::nodelay(internal.window, !value);
 }
 
 Window::~Window() {

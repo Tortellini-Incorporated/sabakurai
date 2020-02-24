@@ -40,4 +40,4 @@ out/sleep.o: src/sleep.c src/sleep.h
 
 .PHONY: clean
 clean: 
-	rm saba sabakurai out/* -rf
+	rm saba sabakurai test debug*.log out/* -rf
