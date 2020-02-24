@@ -47,7 +47,10 @@ void startGame(ServerSession* server) {
 		session->players[i].progress = 0;
 	}
 	char buffer[MAX_FILE_SIZE];
-	int size = getRandomStringMesg(buffer);
+	buffer[0] = 3;
+	int size = getRandomStringMesg(buffer + 3);
+	buffer[1] = (size >> 8) & 0xFF;
+	buffer[2] = size & 0xFF;
 	broadcastPacket(server, buffer, size);
 }
 
@@ -61,9 +64,9 @@ void updatePlayers(ServerSession* server) {
 			buffer[offset] = i;
 			if (session->players[i].finishTime > 0) {
 				buffer[offset + 1] = 1;
-				buffer[offset + 2] = session->players[i].finishTime >> 24;
-				buffer[offset + 3] = session->players[i].finishTime >> 16;
-				buffer[offset + 4] = session->players[i].finishTime >> 8;
+				buffer[offset + 2] = (session->players[i].finishTime >> 24) & 0xFF;
+				buffer[offset + 3] = (session->players[i].finishTime >> 16) & 0xFF;
+				buffer[offset + 4] = (session->players[i].finishTime >> 8) & 0xFF;
 				buffer[offset + 5] = session->players[i].finishTime & 0xFF;
 				offset += 6;
 			} else if (session->players[i].progress >= 0) {
@@ -162,10 +165,38 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 				data = ((char*) data) + 1;
 				--length;
 			} else if (msg == 1) {//CHANGE_NAME
-				/*TODO*/
 				int nameLen = ((char*) data)[1];
+				printf("debug: [%s] changing their name to ", session->players[client].name);
+				session->players[client].name = realloc(session->players[client].name, nameLen * sizeof(char));
+				memcpy(session->players[client].name, ((char*) data) + 2, nameLen);
+				printf("[%s]\n", session->players[client].name);
+
+				char* scratch = malloc(sizeof(char) * (nameLen + 3));
+				scratch[0] = 8;
+				scratch[1] = client;
+				scratch[2] = nameLen;
+				memcpy(scratch + 3, session->players[client].name, nameLen);
+				broadcastPacket(server, scratch, (3 + nameLen) * sizeof(char));
+				free(scratch);
+	
 				data = ((char*) data) + nameLen + 2;
 				length -= nameLen + 2;
+			} else if (msg == 5) {
+				int msgLen = ((char*) data)[1] << 8;
+				msgLen += ((char*) data)[2];
+				char* scratch = malloc(sizeof(char) * (msgLen + 5));
+				scratch[0] = 9;
+				scratch[1] = client;
+				scratch[2] = msgLen >> 8;
+				scratch[3] = msgLen & 0xFF;
+				memcpy(scratch + 4, data + 3, msgLen * sizeof(char));
+				broadcastPacket(server, scratch, (4 + msgLen) * sizeof(char));
+				scratch[msgLen + 4] = 0;
+				printf("debug: [%s]:[%s]\n", session->players[client].name, scratch + 4);
+				free(scratch);
+
+				data = ((char*) data) + msgLen + 3;
+				length -= msgLen + 3;
 			}
 		}
 	}
