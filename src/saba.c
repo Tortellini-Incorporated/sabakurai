@@ -74,9 +74,6 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length); 
 	int bytesRead = 0;
 	while (length > 0) {
-		data = ((char*) data) + bytesRead;
-		length -= bytesRead;
-		bytesRead = 0;
 		if (session->players[client].name == 0) {//Player announcing name
 			bytesRead = phOnConnect(server, session, client, data);
 		} else if (session->currentState) {// in game
@@ -100,6 +97,10 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 		}
 		if (bytesRead < 1) {
 			printf("error: failed to parse message\n");
+			return SSTATE_NORMAL;
+		} else {
+			data = ((char*) data) + bytesRead;
+			length -= length;
 		}
 	}
 	return SSTATE_NORMAL;
