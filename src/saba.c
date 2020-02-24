@@ -1,24 +1,9 @@
 #include "server.h"
+#include "packetHandlers.h"
+#include "gameSession.h"
+#include "sabaSettings.h"
 
 //server
-
-#define MAX_CLIENTS 10
-#define NUM_STRINGS 856
-#define MAX_FILE_SIZE 2048
-
-typedef struct Player {
-	char* name;
-	int progress;
-	unsigned int finishTime;
-} Player;
-
-typedef struct GameData {
-	Player players[MAX_CLIENTS];
-	int numPlayers;
-	int numReady;
-	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
-	int startTimer;
-} GameData;
 
 int getRandomStringMesg(char* buffer) {
 	int numToRead = rand() % NUM_STRINGS;
@@ -87,117 +72,34 @@ void updatePlayers(ServerSession* server) {
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
 	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length); 
+	int bytesRead = 0;
 	while (length > 0) {
+		data = ((char*) data) + bytesRead;
+		length -= bytesRead;
+		bytesRead = 0;
 		if (session->players[client].name == 0) {//Player announcing name
-			int nameLength = *((int*) data) & 0xFF;
-			session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
-			memcpy(session->players[client].name, ((char*) data) + 1, nameLength * sizeof(char));
-			session->players[client].name[nameLength] = 0;
-			printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
-
-			char* msgData;
-
-			int total_message_len = 2;
-			for (int i = 0; i < server->maxClients; ++i) {
-				if ((server->clients[i] || i == client) && session->players[i].name) {
-					total_message_len += 3 + strlen(session->players[i].name);
-				}
-			}
-			msgData = malloc(total_message_len * sizeof(char));
-			msgData[0] = client;
-			msgData[1] = session->numPlayers + 1;
-			int index = 2;
-			for (int i = 0; i < server->maxClients; ++i) {
-				if ((server->clients[i] || i == client) && session->players[i].name) {
-					size_t name_len = strlen(session->players[i].name) * sizeof(char);
-					msgData[index++] = i;
-					msgData[index++] = session->players[i].progress + 1;
-					msgData[index++] = name_len;
-					memcpy(msgData + index, session->players[i].name, name_len);
-					index += name_len;
-				}
-			}
-			sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
-
-			msgData = realloc(msgData, 3 + nameLength);
-			msgData[0] = 0;
-			msgData[1] = client;
-			msgData[2] = (char) nameLength;
-			memcpy(msgData + 3, session->players[client].name, nameLength);
-			broadcastPacket(server, msgData, 3 + nameLength);
-			free(msgData);
-
-			length -= nameLength + 1;
-			data = ((char*) data) + (nameLength + 1);
-			++session->numPlayers;
-			continue;
-		}
-		if (session->currentState) {// in game
+			bytesRead = phOnConnect(server, session, client, data);
+		} else if (session->currentState) {// in game
 			char type = *(char*) data;
-			if (type == 0) {
-				session->players[client].progress = ((char*) data)[1] << 8 + ((char*) data)[2];
-			} else if (type == 1) {
-				session->players[client].finishTime = ((char*) data)[1] << 24 + ((char*) data)[2] << 16 + ((char*) data)[3] + ((char*) data)[4] << 8 + ((char*) data)[5];
-			} else {
-				data = (char*) data + 1;
-				--length;
+			if (type == 2) {//SEND_PROGRESS
+				bytesRead = phSendProgress(server, session, client, data);
+			} else if (type == 3) {//COMPLETED_TEXT
+				bytesRead = phCompletedText(server, session, client, data);
+			} else if (type == 4) {//EXIT_TO_LOBBY
+				bytesRead = phExitToLobby(server, session, client, data);
 			}
 		} else {// waiting
 			char msg = *(char*) data;
 			if (msg == 0) {//TOGGLE_READY
-				if (session->players[client].progress) {
-					session->players[client].progress = 0;
-					++session->numReady;
-					if (session->numReady == session->numPlayers && session->numPlayers > 0) {
-						if (session->startTimer == -1) {
-							session->startTimer = 180;
-						}
-					}
-				} else {
-					session->players[client].progress = -1;
-					--session->numReady;
-				}
-				printf("debug: %s toggled ready, now %d\n", session->players[client].name, session->players[client].progress + 1);
-				char sdata[2];
-				sdata[0] = 1;
-				sdata[1] = client;
-				broadcastPacket(server, sdata, 2);
-				data = ((char*) data) + 1;
-				--length;
+				bytesRead = phToggleReady(server, session, client, data);
 			} else if (msg == 1) {//CHANGE_NAME
-				int nameLen = ((char*) data)[1];
-				printf("debug: [%s] changing their name to ", session->players[client].name);
-				session->players[client].name = realloc(session->players[client].name, nameLen * sizeof(char));
-				memcpy(session->players[client].name, ((char*) data) + 2, nameLen);
-				printf("[%s]\n", session->players[client].name);
-
-				char* scratch = malloc(sizeof(char) * (nameLen + 3));
-				scratch[0] = 8;
-				scratch[1] = client;
-				scratch[2] = nameLen;
-				memcpy(scratch + 3, session->players[client].name, nameLen);
-				broadcastPacket(server, scratch, (3 + nameLen) * sizeof(char));
-				free(scratch);
-	
-				data = ((char*) data) + nameLen + 2;
-				length -= nameLen + 2;
-			} else if (msg == 5) {
-				int msgLen = ((char*) data)[1] << 8;
-				msgLen += ((char*) data)[2];
-				char* scratch = malloc(sizeof(char) * (msgLen + 5));
-				scratch[0] = 9;
-				scratch[1] = client;
-				scratch[2] = msgLen >> 8;
-				scratch[3] = msgLen & 0xFF;
-				memcpy(scratch + 4, data + 3, msgLen * sizeof(char));
-				broadcastPacket(server, scratch, (4 + msgLen) * sizeof(char));
-				scratch[msgLen + 4] = 0;
-				printf("debug: [%s]:[%s]\n", session->players[client].name, scratch + 4);
-				free(scratch);
-
-				data = ((char*) data) + msgLen + 3;
-				length -= msgLen + 3;
+				bytesRead = phChangeName(server, session, client, data);
+			} else if (msg == 5) {//SEND_MESSAGE
+				bytesRead = phSendMessage(server, session, client, data);
 			}
+		}
+		if (bytesRead < 1) {
+			printf("error: failed to parse message\n");
 		}
 	}
 	return SSTATE_NORMAL;
