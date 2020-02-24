@@ -4,7 +4,7 @@ sabakurai: out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/
 	g++ $(flags) -DPORT=$(PORT) src/sabakurai.cpp out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o $@
 
 saba: src/saba.c
-	gcc -DPORT=$(PORT) src/saba.c src/server.c -o $@
+	gcc -DPORT=$(PORT) src/saba.c src/server.c -g -o $@
 
 out/socket.o: src/socket.cpp src/socket.hpp
 	mkdir -p out/
