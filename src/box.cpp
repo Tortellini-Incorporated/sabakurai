@@ -49,7 +49,6 @@ auto Box::draw() -> Window& {
 		} else if (internal.width == 1) {
 			move(0, 0).vert_line(internal.height, ACS_VLINE);
 		} else {
-			file << "WH: " << internal.width << ", " << internal.height << std::endl;
 			move(0,                  0                  ).add_char(ACS_ULCORNER);
 			move(internal.width - 1, 0                  ).add_char(ACS_URCORNER);
 			move(0,                  internal.height - 1).add_char(ACS_LLCORNER);

@@ -19,9 +19,13 @@ class Log : public Window {
 		auto get_line(uint32_t message_index, std::string & write, uint32_t line) -> bool;
 
 	public:
+		uint32_t offset;
+
 		Log();
 		Log(Window & root, bool dummy);
 		Log(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+		auto scroll_up(uint32_t amount) -> void;
+		auto scroll_down(uint32_t amount) -> void;
 		auto message(const std::string & message) -> void;
 		auto message(const std::string & author, const std::string & message) -> void;
 		virtual auto draw() -> Window&;

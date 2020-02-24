@@ -5,18 +5,61 @@
 
 Log::Log() :
 	Window(),
+	offset(0),
 	log() {}
 
 Log::Log(Window & root, bool dummy) :
 	Window(root, true),
+	offset(0),
 	log() {}
 
 Log::Log(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
 	Window(root, true),
+	offset(0),
 	log() {}
+
+extern std::ofstream file;
+
+auto Log::scroll_up(uint32_t amount) -> void {
+	auto lines = 0;
+	for (auto i = uint32_t{ 0 }; i < log.size(); ++i) {
+		auto & message = log[i];
+		auto start = uint32_t{};
+		auto end   = uint32_t{};
+		while (++end <= message.message.size()) {
+			if (message.message[end] == '\n') {
+				++lines;
+				start = ++end;
+			} else if (end - start >= internal.width - 4 * (start > message.author_length)) {
+				++lines;
+				start = end;
+			} else if (end == message.message.size()) {
+				++lines;
+			}
+		}
+	}
+	if (lines > internal.height) {
+		offset += amount;
+		if (offset > lines - internal.height) {
+			offset = lines - internal.height;
+		}
+	}
+	file << "Scroll: " << offset << ", " << lines << ", " << (lines - internal.height) << std::endl;
+}
+
+auto Log::scroll_down(uint32_t amount) -> void {
+	if (offset < amount) {
+		offset = 0;
+	} else {
+		offset -= amount;
+	}
+}
 
 auto Log::message(const std::string & message) -> void {
 	log.push_back({ uint32_t( message.size() ), message });
+	if (offset > 0) {
+		++offset;
+	}
 }
 
 auto Log::message(const std::string & author, const std::string & message) -> void {
@@ -30,9 +73,10 @@ auto Log::message(const std::string & author, const std::string & message) -> vo
 		}
 	}
 	log.push_back({ uint32_t( author.size() + 3 ), std::move(expanded) });
+	if (offset > 0) {
+		++offset;
+	}
 }
-
-extern std::ofstream file;
 
 auto Log::draw() -> Window& {
 	struct Line {
@@ -59,12 +103,15 @@ auto Log::draw() -> Window& {
 			}
 		}
 	}
+	for (auto i = 0; lines.size() > 0 && i < offset; ++i) {
+		lines.pop();
+	}
 
 	for (auto i = uint32_t{ 0 }; i < internal.height; ++i) {
 		move(0, i).horz_line(internal.width, ' ');
 	}
 	auto i = int32_t( lines.size() ) - 1;
-	if (i > internal.height) {
+	if (i > internal.height - 1) {
 		i = internal.height - 1;
 	}
 	for (; i >= 0; --i) {

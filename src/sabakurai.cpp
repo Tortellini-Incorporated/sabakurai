@@ -13,6 +13,33 @@
 
 std::ofstream file("debug.log");
 
+using LogCallback = std::function<void(uint32_t color, const std::string & message)>;
+
+struct Command {
+	std::string name;
+	std::function<void(const std::vector<std::string> & args)> callback;
+
+	auto matches(const std::string & raw, uint32_t end) const -> bool {
+		if (end != name.size() + 1) {
+			return false;
+		}
+		auto i = 1;
+		for (; i < end; ++i) {
+			if (raw[i] != name[i - 1]) {
+				return false;
+			}
+		}
+		if (i != end) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+};
+
+void dispatch_command(const std::string & raw, const std::vector<Command> & commands, LogCallback error);
+std::vector<std::string> get_args(int32_t start, const std::string & raw);
+
 int32_t main(int32_t argc, char ** argv) {
 	auto ip = std::string();
 	if (argc > 1) {
@@ -40,9 +67,6 @@ int32_t main(int32_t argc, char ** argv) {
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
-	if (curs_set(0)) {
-		file << "Awwww man it's cursor time :(" << std::endl;
-	}
 
 	Split split = {
 		root,
@@ -118,7 +142,32 @@ int32_t main(int32_t argc, char ** argv) {
 			socket.width(Socket::U8) >> name;
 			players.add_player(id, 0, ready, name);
 		}
+		auto & self = players.get_player(my_id);
 		players.draw().refresh();
+		
+		////// COMMANDS //////
+
+		auto log_callback = [&log](uint32_t color, const std::string & string) -> void {
+			log.message(string);
+			log.draw().refresh();
+		};
+
+		auto commands = std::vector<Command>{
+			Command{
+				"say",
+				[&self, &log](const std::vector<std::string> & args) -> void {
+					auto message = std::string();
+					for (auto i = 0; i < args.size(); ++i) {
+						message.append(args[i]);
+						if (i < args.size()) {
+							message.append(1, ' ');
+						}
+					}
+					log.message(self.name, message);
+					log.draw().refresh();
+				}
+			}
+		};
 
 		file << "Looping..." << std::endl;
 
@@ -126,6 +175,11 @@ int32_t main(int32_t argc, char ** argv) {
 		while (!quit) {
 			switch (root.get_char()) {
 				case 'r': socket.width(Socket::NONE) << '\0' << Socket::FLUSH; break;
+				case 't': dispatch_command("Hello World!",        commands, log_callback); break;
+				case 's': dispatch_command("/say Goodbye World!", commands, log_callback); break;
+				case 'e': dispatch_command("/error",              commands, log_callback); break;
+				case ',': log.scroll_up(1);   log.draw().refresh(); break;
+				case 'o': log.scroll_down(1); log.draw().refresh(); break;
 				case 'q': quit = true; break;
 			}
 			constexpr static uint8_t
@@ -140,8 +194,10 @@ int32_t main(int32_t argc, char ** argv) {
 						auto id   = uint32_t( socket.read() );
 						auto name = std::string();
 						socket.width(Socket::U8) >> name;
-						players.add_player(id, 0, false, name);
-						players.draw().refresh();
+						if (id != my_id) {
+							players.add_player(id, 0, false, name);
+							players.draw().refresh();
+						}
 						break;
 					}
 					case TOGGLE_READY: {
@@ -174,4 +230,54 @@ int32_t main(int32_t argc, char ** argv) {
 	return 0;
 }
 
+void dispatch_command(const std::string & raw, const std::vector<Command> & commands, LogCallback error) {
+	file << "Dispatching: " << raw << std::endl;
+	if (raw.size() > 0) {
+		if (raw[0] != '/') {
+			commands[0].callback(get_args(0, raw));
+		} else if (raw.size() > 1 && raw[1] == '/') {
+			commands[0].callback(get_args(2, raw));
+		} else {
+			auto end = 0;
+			while (++end < raw.size() && raw[end] != ' ');
+
+			auto i = 0;
+			for (; i < commands.size(); ++i) {
+				if (commands[i].matches(raw, end)) {
+					commands[i].callback(get_args(end + 1, raw));
+					break;
+				}
+			}
+			
+			if (i == commands.size()) {
+				auto error_message = std::string("Undefined command '").append(raw, 0, end).append(1, '\'');
+				error(0x00, error_message);
+			}
+		}
+	}
+}
+
+std::vector<std::string> get_args(int32_t start, const std::string & raw) {
+	auto args = std::vector<std::string>{};
+	auto quoted = false;
+	auto consume_next = false;
+	auto arg = std::string();
+	for (auto i = start; i < raw.size(); ++i) {
+		if (consume_next) {
+			arg += raw[i];
+			consume_next = false;
+		} else if (raw[i] == '\\') {
+			consume_next = true;
+		} else if (raw[i] == '"') {
+			quoted = !quoted;
+		} else if (raw[i] == ' ' && !quoted) {
+			args.push_back(std::move(arg));
+			arg = std::string();
+		} else {
+			arg += raw[i];
+		}
+	}
+	args.push_back(std::move(arg));
+	return args;
+}
 

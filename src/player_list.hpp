@@ -16,13 +16,13 @@ class PlayerList : public Window {
 		};
 
 	protected:
-		virtual auto component_resize() -> void;
-
 		uint32_t offset;
 		std::vector<Player> players;
 
 		auto find_player(uint32_t id) -> uint32_t;
 	public:
+		virtual auto component_resize() -> void;
+
 		PlayerList();
 		PlayerList(Window & root, bool dummy);
 		PlayerList(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
