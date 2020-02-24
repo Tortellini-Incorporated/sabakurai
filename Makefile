@@ -1,7 +1,7 @@
 PORT=4730
 
-sabakurai: out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/sabakurai.cpp
-	g++ $(flags) -DPORT=$(PORT) src/sabakurai.cpp out/socket.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o $@
+sabakurai: out/socket.o out/command_prompt.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/sabakurai.cpp
+	g++ $(flags) -DPORT=$(PORT) src/sabakurai.cpp out/socket.o out/command_prompt.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o $@
 
 saba: src/saba.c
 	gcc $(flags) -DPORT=$(PORT) src/saba.c src/server.c -o $@
@@ -12,6 +12,10 @@ key_test: src/key_test.cpp
 out/socket.o: src/socket.cpp src/socket.hpp
 	mkdir -p out/
 	g++ $(flags) -c src/socket.cpp -o $@
+
+out/command_prompt.o: src/command_prompt.cpp src/command_prompt.hpp
+	mkdir -p out/
+	g++ $(flags) -c src/command_prompt.cpp -o $@
 
 out/log.o: src/log.cpp src/log.hpp
 	mkdir -p out/
