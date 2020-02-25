@@ -171,7 +171,7 @@ struct PlayerExitGame {
 
 #### GAME_OVER
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
