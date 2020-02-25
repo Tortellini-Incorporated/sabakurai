@@ -35,6 +35,8 @@
 #include <vector>
 #include <sstream>
 
+extern std::ofstream file;
+
 class Socket {
 	public:
 		struct Flags {
@@ -48,7 +50,7 @@ class Socket {
 		int socket;
 		sockaddr_in mAddressInfo;
 		bool connected;
-		std::stringstream message;
+		std::vector<uint8_t> message;
 		Flags mFlags;
 		Width mWidth;
 		pollfd pollFd;
@@ -67,29 +69,17 @@ class Socket {
 
 		auto poll(uint32_t timeout) -> bool;
 		auto read() -> uint8_t;
-		template <typename T>
-		auto operator<<(const T & data) -> Socket& {
-			message << data;
-			return *this;
-		}
 
-		auto operator<<(Flush flush) -> Socket& {
-			if (flush == FLUSH_LINE) {
-				message << '\n';
-			}
-			auto messageString = message.str();
-			auto index  = 0;
-			auto length = messageString.size();
-			switch (mWidth) {
-				case U32: messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
-				          messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
-				case U16: messageString.insert(index, 1, uint8_t((length >> ((mWidth - index) * 8)) & 0xFF)); ++index;
-				case U8:  messageString.insert(index, 1, uint8_t((length >>  (mWidth - index)     ) & 0xFF));
-			}
-			send(socket, messageString.c_str(), messageString.size(), mFlags.flags);
-			message.str(std::string());
-			return *this;
-		}
+		auto operator<<(const char * str) -> Socket&;
+		auto operator<<(const std::string & str) -> Socket&;
+		auto operator<<(char     data) -> Socket&;
+		auto operator<<( int8_t  data) -> Socket&;
+		auto operator<<(uint8_t  data) -> Socket&;
+		auto operator<<( int16_t data) -> Socket&;
+		auto operator<<(uint16_t data) -> Socket&;	
+		auto operator<<( int32_t data) -> Socket&;
+		auto operator<<(uint32_t data) -> Socket&;
+		auto operator<<(Flush flush)   -> Socket&;
 
 		auto operator>>(std::string & string) -> Socket&;
 		auto operator>>(std::vector<char> & vector) -> Socket&;

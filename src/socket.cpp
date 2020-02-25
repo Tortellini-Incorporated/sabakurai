@@ -1,7 +1,7 @@
-#include "socket.hpp"
-
 #include <iostream>
 #include <fstream>
+
+#include "socket.hpp"
 
 #ifdef _WIN32
 	int initSocket() {
@@ -90,6 +90,77 @@ auto Socket::read() -> uint8_t {
 	recv(socket, &c, 1, mFlags.flags);
 	file << "C: " << (uint32_t) c << std::endl;
 	return c;
+}
+
+auto Socket::operator<<(const char * str) -> Socket& {
+	--str;
+	while (*++str != '\0') {
+		message.push_back(*str);
+	}
+	return *this;
+}
+
+auto Socket::operator<<(const std::string & str) -> Socket& {
+	for (auto i = 0; i < str.size(); ++i) {
+		message.push_back(str[i]);
+	}
+	return *this;
+}
+
+auto Socket::operator<<(char data) -> Socket& {
+	message.push_back(data);
+	return *this;
+}
+
+auto Socket::operator<<(int8_t data) -> Socket& {
+	message.push_back(data);
+	return *this;
+}
+
+auto Socket::operator<<(uint8_t data) -> Socket& {
+	message.push_back(data);
+	return *this;
+}
+
+auto Socket::operator<<(int16_t data) -> Socket& {
+	message.push_back((data >> 8) & 0xFF);
+	message.push_back((data     ) & 0xFF);
+	return *this;
+}
+
+auto Socket::operator<<(uint16_t data) -> Socket& {
+	message.push_back((data >> 8) & 0xFF);
+	message.push_back((data     ) & 0xFF);
+	return *this;
+}
+
+auto Socket::operator<<(int32_t data) -> Socket& {
+	message.push_back((data >> 24) & 0xFF);
+	message.push_back((data >> 16) & 0xFF);
+	message.push_back((data >>  8) & 0xFF);
+	message.push_back((data      ) & 0xFF);
+	return *this;
+}
+
+auto Socket::operator<<(uint32_t data) -> Socket& {
+	message.push_back((data >> 24) & 0xFF);
+	message.push_back((data >> 16) & 0xFF);
+	message.push_back((data >>  8) & 0xFF);
+	message.push_back((data      ) & 0xFF);
+	return *this;
+}
+
+auto Socket::operator<<(Flush flush) -> Socket& {
+	if (flush == FLUSH_LINE) {
+		message.push_back('\n');
+	}
+	for (auto i : message) {
+		file << uint32_t( i ) << " ";
+	}
+	file << std::endl;
+	send(socket, &message[0], message.size(), mFlags.flags);
+	message.clear();
+	return *this;
 }
 
 auto Socket::operator>>(std::string & string) -> Socket& {

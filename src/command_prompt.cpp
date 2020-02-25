@@ -76,15 +76,17 @@ auto CommandPrompt::line_count() -> uint32_t {
 auto CommandPrompt::update() -> bool {
 	auto c = int32_t( '\0' );
 	if ((c = get_char()) != ERR) {
-		if (c == 0x9 || (' ' <= c && c <= '~')) {                   // Tab or a printable ascii character
-			file << c << std::endl;
+		if (' ' <= c && c <= '~') {                                 // Printable ascii character
 			command.insert(cursor_pos, 1, c);
 			++cursor_pos;
-		} else if (c == 0xA) {                                      // Enter
-			is_complete = true;
+		} else if (c == 0x9) {                                  // Tab
+			command.insert(cursor_pos, 4, ' ');
+			cursor_pos += 4;
 		} else if (c == KEY_BTAB) {                                 // New line -- Shift + Tab
 			command.insert(cursor_pos, 1, '\n');
 			++cursor_pos;
+		} else if (c == 0xA) {                                      // Enter
+			is_complete = true;
 		} else if (c == KEY_DC && cursor_pos < command.size()) {    // Delet
 			command.erase(cursor_pos, 1);
 		} else if (c == KEY_BACKSPACE && cursor_pos > 0) {          // Backspace
@@ -94,6 +96,48 @@ auto CommandPrompt::update() -> bool {
 			--cursor_pos;
 		} else if (c == KEY_RIGHT && cursor_pos < command.size()) { // Move forward
 			++cursor_pos;
+		} else if (c == KEY_UP) {                                   // Move up
+			if (cursor_pos > 0) {
+				auto x = 1;
+				auto local_cursor_pos = int32_t( cursor_pos ) - 1;
+				while (local_cursor_pos > 0 && command[local_cursor_pos] != '\n') {
+					--local_cursor_pos;
+					++x;
+				}
+				if (local_cursor_pos > 0) {
+					--x;
+					--local_cursor_pos;
+					while (local_cursor_pos > 0 && command[local_cursor_pos] != '\n') {
+						--local_cursor_pos;
+					}
+					if (local_cursor_pos != 0) {
+						++local_cursor_pos;
+					}
+					while (x > 0 && command[local_cursor_pos] != '\n') {
+						--x;
+						++local_cursor_pos;
+					}
+				}
+				cursor_pos = local_cursor_pos;
+			}
+		} else if (c == KEY_DOWN) {                                 // Move down
+			auto x = 1;
+			auto local_cursor_pos = int32_t( cursor_pos );
+			while (local_cursor_pos - x >= 0 && command[local_cursor_pos - x] != '\n') {
+				++x;
+			}
+			--x;
+			while (local_cursor_pos < command.size() && command[local_cursor_pos] != '\n') {
+				++local_cursor_pos;
+			}
+			if (local_cursor_pos < command.size()) {
+				++local_cursor_pos;
+				while (x > 0 && local_cursor_pos < command.size() && command[local_cursor_pos] != '\n') {
+					--x;
+					++local_cursor_pos;
+				}
+			}
+			cursor_pos = local_cursor_pos;
 		} else {
 			return false;
 		}
@@ -103,7 +147,6 @@ auto CommandPrompt::update() -> bool {
 		} else if (pos.y >= offset + internal.height) {
 			offset = pos.y - internal.height + 1;
 		}
-		file << "Update Offset: " << offset << std::endl;
 		return true;
 	}
 	return false;
@@ -113,8 +156,11 @@ auto CommandPrompt::complete() -> bool {
 	return is_complete;
 }
 
-auto CommandPrompt::height_change() -> bool {
+auto CommandPrompt::height_change(uint32_t max) -> bool {
 	auto lines = line_count();
+	if (lines > max) {
+		lines = max;
+	}
 	if (last_count == lines) {
 		return false;
 	} else {
@@ -169,16 +215,12 @@ auto CommandPrompt::draw() -> Window& {
 			move(0, i).horz_line(internal.width, ' ');
 		}
 		auto i = int32_t( lines.size() ) - 1;
-		file << "Offset: " << offset << std::endl;
-		file << "Linounoteuhont: " << i << ", " << lines.size() << std::endl;
 		if (i > int32_t( internal.height ) - 1) {
 			i = internal.height - 1;
 		}
-		file << "Linounoteuhont: " << i << ", " << lines.size() << std::endl;
 		for (; i >= 0; --i) {
 			auto & line = lines.top();
 			if (line.length > 0) {
-				file << line.begin << ", " << line.length << ": " << command.substr(line.begin, line.length) << std::endl;
 				move(0, i).print("%s", command.substr(line.begin, line.length).c_str());
 			}
 			lines.pop();

@@ -48,32 +48,33 @@ auto PlayerList::remove_player(uint32_t id) -> void {
 }
 
 auto PlayerList::draw() -> Window& {
-	auto max = players.size() - offset;
-	if (max > internal.height) {
-		max = internal.height;
-	}
-	auto i = uint32_t{ 0 };
-	for (; i < max; ++i) {
-		auto & player = players[offset + i];
-		auto print_name = std::string("[");
-		if (player.ready) {
-			print_name.append("*");
-		} else {
-			print_name.append(" ");
+	if (internal.width > 0) {
+		for (auto i = 0; i < internal.height; ++i) {
+			move(0, i).horz_line(internal.width, ' ');
 		}
-		print_name.append("] ").append(player.name);
-		if (internal.width == 3) {
-			move(1, i).print(".");
-		} else if (internal.width == 4) {
-			move(1, i).print("..");
-		} else if (print_name.size() > internal.width) {
-			move(1, i).print("%s...", print_name.substr(0, internal.width - 4).c_str());
-		} else if (internal.width >= 3) {
-			move(1, i).print("%s", print_name.c_str());
+		auto max = players.size() - offset;
+		if (max > internal.height) {
+			max = internal.height;
 		}
-	}
-	for (; i < internal.height; ++i) {
-		move(0, i).horz_line(internal.width, ' ');
+		for (auto i = 0; i < max; ++i) {
+			auto & player = players[offset + i];
+			auto print_name = std::string("[");
+			if (player.ready) {
+				print_name.append("*");
+			} else {
+				print_name.append(" ");
+			}
+			print_name.append("] ").append(player.name);
+			if (internal.width == 3) {
+				move(1, i).print(".");
+			} else if (internal.width == 4) {
+				move(1, i).print("..");
+			} else if (print_name.size() > internal.width) {
+				move(1, i).print("%s...", print_name.substr(0, internal.width - 4).c_str());
+			} else if (internal.width >= 3) {
+				move(1, i).print("%s", print_name.c_str());
+			}
+		}
 	}
 	return *this;
 }

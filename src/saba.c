@@ -78,6 +78,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			bytesRead = phOnConnect(server, session, client, data);
 		} else if (session->currentState) {// in game
 			char type = *(char*) data;
+			printf("debug: in game, checking message type, type [%d]\n", type);
 			if (type == 2) {//SEND_PROGRESS
 				bytesRead = phSendProgress(server, session, client, data);
 			} else if (type == 3) {//COMPLETED_TEXT
@@ -87,6 +88,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			}
 		} else {// waiting
 			char msg = *(char*) data;
+			printf("debug: waiting, checking message type, type [%d]\n", msg);
 			if (msg == 0) {//TOGGLE_READY
 				bytesRead = phToggleReady(server, session, client, data);
 			} else if (msg == 1) {//CHANGE_NAME

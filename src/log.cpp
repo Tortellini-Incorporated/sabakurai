@@ -45,7 +45,6 @@ auto Log::scroll_up(uint32_t amount) -> void {
 			offset = lines - internal.height;
 		}
 	}
-	file << "Scroll: " << offset << ", " << lines << ", " << (lines - internal.height) << std::endl;
 }
 
 auto Log::scroll_down(uint32_t amount) -> void {
