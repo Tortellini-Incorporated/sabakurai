@@ -7,7 +7,7 @@
 
 int getRandomStringMesg(char* buffer) {
 	int numToRead = rand() % NUM_STRINGS;
-	char titleBuffer[32];
+	static char titleBuffer[32];
 	sprintf(titleBuffer, "texts/%d", numToRead);
 	
 	FILE* file = fopen(titleBuffer, "r");
@@ -31,7 +31,7 @@ void startGame(ServerSession* server) {
 	for (int i = 0; i < session->numPlayers; ++i) {
 		session->players[i].progress = 0;
 	}
-	char buffer[MAX_FILE_SIZE];
+	static char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
 	int size = getRandomStringMesg(buffer + 3);
 	buffer[1] = (size >> 8) & 0xFF;
