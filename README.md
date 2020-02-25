@@ -97,7 +97,7 @@ struct Start {
 #### UPDATE_NAME
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct UpdateName {
@@ -111,7 +111,7 @@ struct UpdateName {
 #### RELAY_MESSAGE
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct RelayMessage { 
@@ -232,7 +232,7 @@ struct ToggleReady {
 #### CHANGE_NAME
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct ChangeName {
@@ -245,7 +245,7 @@ struct ChangeName {
 #### SEND_MESSAGE
 
  - [x] saba implemented
- - [ ] kurai imeplemented
+ - [x] kurai imeplemented
 
 ```cpp
 struct SendMessage {
