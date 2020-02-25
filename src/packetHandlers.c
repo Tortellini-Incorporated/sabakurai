@@ -79,6 +79,7 @@ int phChangeName(ServerSession* server, GameData* session, int client, char* dat
 
 int phSendMessage(ServerSession* server, GameData* session, int client, char* data) {	// 5
 	int msgLen = data[1] << 8;
+	printf("debug: relaying message, length [%d]\n", msgLen);
 	msgLen += data[2];
 	char* scratch = malloc(sizeof(char) * (msgLen + 5));
 	scratch[0] = 9;

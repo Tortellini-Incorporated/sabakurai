@@ -6,7 +6,6 @@ extern std::ofstream file;
 
 auto Window::root_get_char(const Window & window) -> uint32_t {
 	auto c = ::wgetch(window.internal.window);
-	file << "Key Name: " << keyname(c) << ", " << c << std::endl;
 	while (c == KEY_RESIZE) {
 		internal = { 0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, internal.root };
 		component_resize();

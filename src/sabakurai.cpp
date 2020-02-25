@@ -91,12 +91,7 @@ int32_t main(int32_t argc, char ** argv) {
 
 	Box logBox = { root, "Log" };
 	Log log = { root, true };
-	log.message("C1FR1", "\nstruct Fact {\n\tconst static char * fact = \"Carrot is the superior vegetable. It's high in orange color concentrate giving it a distinctly carrot colored look. Anyone caught not liking carrots will be purged from this world immediately without hesitation. Thanks and have fun!\";\n};");
-	log.message("Gnarwhal", "f");
-	log.message("Gnarwhal", "i");
-	log.message("Gnarwhal", "n");
-	log.message("Gnarwhal", "n");
-	log.message("Gnarwhal", "a");
+	log.message("Welcome to sabakurai! For assistance please enter /help");
 	logBox.set_child(&log);
 
 	file << "Wat5" << std::endl;
@@ -147,7 +142,10 @@ int32_t main(int32_t argc, char ** argv) {
 		file << "Connected to server at ip '" << ip << '\'' << std::endl;
 
 		file << "Sending user info..." << std::endl;
-		socket.width(Socket::U8) << username << Socket::FLUSH;
+		socket
+			<< uint8_t( username.size() )
+			<< username
+			<< Socket::FLUSH;
 
 		auto my_id = socket.read();
 		auto player_count = socket.read();
@@ -174,22 +172,71 @@ int32_t main(int32_t argc, char ** argv) {
 		auto commands = std::vector<Command>{
 			Command{
 				"say",
-				[&self, &log](const std::vector<std::string> & args) -> void {
+				[&socket](const std::vector<std::string> & args) -> void {
 					auto message = std::string();
 					for (auto i = 0; i < args.size(); ++i) {
 						message.append(args[i]);
-						if (i < args.size()) {
+						if (i < args.size() - 1) {
 							message.append(1, ' ');
 						}
 					}
-					log.message(self.name, message);
-					log.draw().refresh();
+					file << "Say: " << message << std::endl;
+					socket
+						<< uint8_t( 0x05 )
+						<< uint16_t( message.size() )
+						<< message
+						<< Socket::FLUSH;
 				}
 			},
 			Command{
 				"quit",
 				[&quit](const std::vector<std::string> & args) -> void {
 					quit = true;
+				}
+			},
+			Command{
+				"help",
+				[&log](const std::vector<std::string> & args) -> void {
+					log.message(
+						"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
+						"Commands:\n"
+						"- /help          - prints the help menu\n"
+						"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
+						"- /quit          - quits the game\n"
+						"- /ready         - toggle ready status\n"
+						"- /name <string> - changes your name - UNIMPLEMENTED\n"
+					);
+					log.draw().refresh();
+				}
+			},
+			Command{
+				"ready",
+				[&socket](const std::vector<std::string> & args) -> void {
+					socket
+						<< uint8_t( 0 )
+						<< Socket::FLUSH;
+				}
+			},
+			Command{
+				"name",
+				[&self, &socket, &log_callback, &log](const std::vector<std::string> & args) -> void {
+					auto name = std::string();
+					for (auto i = 0; i < args.size(); ++i) {
+						name.append(args[i]);
+						if (i < args.size() - 1) {
+							name.append(1, ' ');
+						}
+					}
+					if (name.size() > 0xFF) {
+						log_callback(0x00, "Sorry. Max name length is 255.");
+						log.draw().refresh();
+					} else {
+						socket
+							<< uint8_t( 0x01 )
+							<< uint8_t( name.size() )
+							<< name
+							<< Socket::FLUSH;
+					}
 				}
 			}
 		};
@@ -202,7 +249,7 @@ int32_t main(int32_t argc, char ** argv) {
 					dispatch_command(command.get(), commands, log_callback);
 					command.clear_command();
 				}
-				if (command.height_change()) {
+				if (command.height_change(command.height() + 1)) {
 					split3.component_resize();
 					logBox.draw();
 					commandBox.draw();
@@ -213,10 +260,12 @@ int32_t main(int32_t argc, char ** argv) {
 			}
 			split3.refresh();
 			constexpr static uint8_t
-				CONNECT      = 0x00,
-				TOGGLE_READY = 0x01,
-				DISCONNECT   = 0x02,
-				START        = 0x03;
+				CONNECT       = 0x00,
+				TOGGLE_READY  = 0x01,
+				DISCONNECT    = 0x02,
+				START         = 0x03,
+				UPDATE_NAME   = 0x08,
+				RELAY_MESSAGE = 0x09;
 			if (socket.poll(16)) {
 				auto read = socket.read();
 				switch (read) {
@@ -225,8 +274,10 @@ int32_t main(int32_t argc, char ** argv) {
 						auto name = std::string();
 						socket.width(Socket::U8) >> name;
 						if (id != my_id) {
+							log.message(std::string("Player '").append(name).append("' connected"));
 							players.add_player(id, 0, false, name);
 							players.draw().refresh();
+							log.draw().refresh();
 						}
 						break;
 					}
@@ -234,17 +285,43 @@ int32_t main(int32_t argc, char ** argv) {
 						auto id = uint32_t( socket.read() );
 						auto & player = players.get_player(id);
 						player.ready = !player.ready;
+						if (player.ready) {
+							log.message(std::string("Player '").append(player.name).append("' is ready"));
+						} else {
+							log.message(std::string("Player '").append(player.name).append("' is no longer ready"));
+						}
 						players.draw().refresh();
+						log.draw().refresh();
 						break;
 					}
 					case DISCONNECT: {
 						auto id = uint32_t( socket.read() );
+						log.message(std::string("Player '").append(players.get_player(id).name).append("' disconnected"));
 						players.remove_player(id);
 						players.draw().refresh();
+						log.draw().refresh();
 						break;
 					}
 					case START: {
 						// TODO: Start the game
+						break;
+					}
+					case UPDATE_NAME: {
+						auto id = uint32_t( socket.read() );
+						auto & player = players.get_player(id);
+						socket.width(Socket::U8) >> player.name;
+						file << "New Name: " << player.name << std::endl;
+						players.draw().refresh();
+						break;
+					}
+					case RELAY_MESSAGE: {
+						auto id = uint32_t( socket.read() );
+						auto & player = players.get_player(id);
+						auto message = std::string();
+						socket.width(Socket::U16) >> message;
+						log.message(player.name, message);
+						log.draw().refresh();
+						break;
 					}
 					default: {
 						file << "Wakarimasen deshita " << uint32_t( read ) << std::endl;
@@ -267,7 +344,7 @@ void dispatch_command(const std::string & raw, const std::vector<Command> & comm
 		if (raw[0] != '/') {
 			commands[0].callback(get_args(0, raw));
 		} else if (raw.size() > 1 && raw[1] == '/') {
-			commands[0].callback(get_args(2, raw));
+			commands[0].callback(get_args(1, raw));
 		} else {
 			auto end = 0;
 			while (++end < raw.size() && raw[end] != ' ');

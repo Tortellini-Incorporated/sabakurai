@@ -27,7 +27,7 @@ class CommandPrompt : public Window {
 		auto line_count() -> uint32_t;
 		auto update() -> bool;
 		auto complete() -> bool;
-		auto height_change() -> bool;
+		auto height_change(uint32_t max) -> bool;
 		auto get() -> std::string;
 		auto clear_command() -> void;
 		auto move_cursor() -> void;
