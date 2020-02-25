@@ -133,18 +133,11 @@ struct RelayMessage {
 
 #### UPDATE_PROGRESS
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
-struct UpdateProgress { //CURRENT IMPLEMENTATION ONLY, TO BE DEPRECATED
-	const MessageType type = UPDATE_PROGRESS;
-	uint8_t id;				//user who made progress
-	uint8_t state;			//0 = in game, 1 = completed, 2 = waiting
-	uint16_t chracterIndex; //character they are typing
-}
-
-struct UpdateProgress {	//not implemented yet
+struct UpdateProgress {
 	const MessageType type = UPDATE_PROGRESS;	// 4
 	uint8_t id;									// player who made progress
 	uint16_t progress;							// new index they are at
@@ -153,7 +146,7 @@ struct UpdateProgress {	//not implemented yet
 
 #### PLAYER_COMPLETED
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
@@ -166,7 +159,7 @@ struct PlayerCompleted {
 
 #### PLAYER_EXIT_GAME
 
- - [ ] saba implemented
+ - [x] saba implemented
  - [ ] kurai implemented
 
 ```cpp
@@ -265,7 +258,7 @@ struct SendMessage {
 
 #### SEND_PROGRESS
 
-- [ ] saba implemented
+- [x] saba implemented
 - [ ] kurai impelemented
 
 ```cpp
@@ -277,7 +270,7 @@ struct SendProgress {
 
 #### COMPLETED_TEXT
 
-- [ ] saba implemented
+- [x] saba implemented
 - [ ] kurai implemented
 
 ```cpp
@@ -289,7 +282,7 @@ struct CompletedText {
 
 #### EXIT_TO_LOBBY
 
-- [ ] saba implemented
+- [x] saba implemented
 - [ ] kurai implemented
 
 ```cpp

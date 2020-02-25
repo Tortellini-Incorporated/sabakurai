@@ -98,6 +98,12 @@ int phSendMessage(ServerSession* server, GameData* session, int client, char* da
 
 int phSendProgress(ServerSession* server, GameData* session, int client, char* data) {	// 2
 	session->players[client].progress = data[1] << 8 + data[2];
+	char packet[4];
+	packet[0] = 4;
+	packet[1] = client;
+	packet[2] = data[1];
+	packet[3] = data[2];
+	broadcastPacket(server, packet, 4);
 	return 3;
 }
 
@@ -106,11 +112,22 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 											data[2] << 16 +
 											data[3] << 8 +
 											data[4];
-	/* TODO: update other players */
+	char packet[6];
+	packet[0] = 5;
+	packet[1] = client;
+	packet[2] = data[1];
+	packet[3] = data[2];
+	packet[4] = data[3];
+	packet[5] = data[4];
+	broadcastPacket(server, packet, 6);
 	return 5;
 }
 
 int phExitToLobby(ServerSession* server, GameData* session, int client, char* data) {	// 4
-	/* TODO */
+	session->players[client].progress = -1;
+	char packet[2];
+	packet[0] = 6;
+	packet[1] = client;
+	broadcastPacket(server, packet, 2);
 	return 1;
 }

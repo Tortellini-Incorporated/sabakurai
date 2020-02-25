@@ -30,6 +30,7 @@ void startGame(ServerSession* server) {
 	session->currentState = 1;
 	for (int i = 0; i < session->numPlayers; ++i) {
 		session->players[i].progress = 0;
+		session->players[i].finishTime = -1;
 	}
 	static char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
