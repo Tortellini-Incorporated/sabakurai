@@ -7,7 +7,7 @@ saba: src/saba.c src/packetHandlers.c src/server.c
 	gcc $(flags) -DPORT=$(PORT) src/saba.c src/packetHandlers.c src/server.c -o $@
 
 key_test: src/key_test.cpp
-	g++ $(flags) -DPORT=$(PORT) src/key_test.cpp -lncurses -o $@
+	g++ $(flags) src/key_test.cpp -lncurses -o $@
 
 out/socket.o: src/socket.cpp src/socket.hpp
 	mkdir -p out/
@@ -47,4 +47,4 @@ out/sleep.o: src/sleep.c src/sleep.h
 
 .PHONY: clean
 clean: 
-	rm saba sabakurai test debug*.log out/* -rf
+	rm saba sabakurai key_test debug*.log out/* -rf

@@ -15,6 +15,8 @@ class Window {
 			
 			WINDOW * window;
 			Window * root;
+			
+			bool is_root;
 		} internal;
 
 		auto root_get_char(const Window & window) -> uint32_t;
