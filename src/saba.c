@@ -25,13 +25,13 @@ int getRandomStringMesg(char* buffer) {
 	return size + 3;
 }
 
-void startGame(ServerSession* server) {
-	GameData* session = (GameData*) server->sessionData;
+void startGame(ServerSession* server, GameData* session) {
 	session->currentState = 1;
-	for (int i = 0; i < session->numPlayers; ++i) {
+	for (int i = 0; i < server->maxClients; ++i) {
 		session->players[i].progress = 0;
 		session->players[i].finishTime = -1;
 	}
+	session->startTimer = -1;
 	static char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
 	int size = getRandomStringMesg(buffer + 3);
@@ -40,61 +40,61 @@ void startGame(ServerSession* server) {
 	broadcastPacket(server, buffer, size);
 }
 
-void updatePlayers(ServerSession* server) {
-	GameData* session = (GameData*) server->sessionData;
-	char* buffer = malloc(session->numPlayers * 6 + 1);
-	buffer[0] = 4;
-	int offset = 1;
+void endGame(ServerSession* server, GameData* session) {
+	char* packet;
+	int totalMsgLen = 2;
+
+	session->numPlayers = 0;
+	session->currentState = 0;
+	session->startTimer = -1;
+	
 	for (int i = 0; i < server->maxClients; ++i) {
-		if (server->clients[i]) {
-			buffer[offset] = i;
-			if (session->players[i].finishTime > 0) {
-				buffer[offset + 1] = 1;
-				buffer[offset + 2] = (session->players[i].finishTime >> 24) & 0xFF;
-				buffer[offset + 3] = (session->players[i].finishTime >> 16) & 0xFF;
-				buffer[offset + 4] = (session->players[i].finishTime >> 8) & 0xFF;
-				buffer[offset + 5] = session->players[i].finishTime & 0xFF;
-				offset += 6;
-			} else if (session->players[i].progress >= 0) {
-				buffer[offset + 1] = 0;
-				buffer[offset + 2] = session->players[i].progress >> 8;
-				buffer[offset + 3] = session->players[i].progress & 0xFF;
-				offset += 4;
-			} else if (session->players[i].progress = -1) {
-				buffer[offset + 1] = 2;
-				offset += 2;
-			}
+		session->players[i].progress = -1;
+		session->players[i].finishTime = -1;
+		if (server->clients[i] && session->players[i].name) {
+			++session->numPlayers;
+			totalMsgLen += 3 + strlen(session->players[i].name);
 		}
 	}
-	broadcastPacket(server, buffer, offset);
-	free(buffer);
+	packet = malloc(totalMsgLen);
+	packet[0] = 7;
+	packet[1] = session->numPlayers;
+	
+	int index = 2;
+	
+	for (int i = 0; i < server->maxClients; ++i) {
+		if (server->clients[i] && session->players[i].name) {
+			int nameLen = strlen(session->players[i].name);
+			packet[index++] = i;
+			packet[index++] = 0;//nobody should be ready
+			packet[index++] = nameLen;
+			memcpy(packet + index, session->players[i].name, nameLen);
+			index += nameLen;
+		}
+	}
+	broadcastPacket(server, packet, totalMsgLen);
+	free(packet);
 }
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: parsing message from [%s], message [%s] length %d\n", session->players[client].name, (char*) data, length); 
 	int bytesRead = 0;
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			bytesRead = phOnConnect(server, session, client, data);
 		} else if (session->currentState) {// in game
-			char type = *(char*) data;
-			printf("debug: in game, checking message type, type [%d]\n", type);
-			if (type == 2) {//SEND_PROGRESS
+			char msgType = *(char*) data;
+			if        (msgType == 2) {//SEND_PROGRESS
 				bytesRead = phSendProgress(server, session, client, data);
-			} else if (type == 3) {//COMPLETED_TEXT
+			} else if (msgType == 3) {//COMPLETED_TEXT
 				bytesRead = phCompletedText(server, session, client, data);
-			} else if (type == 4) {//EXIT_TO_LOBBY
+			} else if (msgType == 4) {//EXIT_TO_LOBBY
 				bytesRead = phExitToLobby(server, session, client, data);
-			}
-		} else {// waiting
-			char msg = *(char*) data;
-			printf("debug: waiting, checking message type, type [%d]\n", msg);
-			if (msg == 0) {//TOGGLE_READY
+			} else if (msgType == 0) {//TOGGLE_READY
 				bytesRead = phToggleReady(server, session, client, data);
-			} else if (msg == 1) {//CHANGE_NAME
+			} else if (msgType == 1) {//CHANGE_NAME
 				bytesRead = phChangeName(server, session, client, data);
-			} else if (msg == 5) {//SEND_MESSAGE
+			} else if (msgType == 5) {//SEND_MESSAGE
 				bytesRead = phSendMessage(server, session, client, data);
 			}
 		}
@@ -110,17 +110,25 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 }
 
 ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_in adr) {
-	printf("debug: new connection %d\n", client);
+	printf("debug: new connection given id [%d]\n", client);
 	GameData* session = (GameData*) server->sessionData;
 	session->players[client].name = 0;
 	session->players[client].progress = -1;
+	session->players[client].finishTime = -1;
 }
 
 ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
 	printf("debug: [%s] disconnected\n", session->players[client].name);
 	if (session->currentState) {
-		//was I going to do something here?
+		char packet[2];
+		packet[1] = client;
+		if (session->players[client].progress >= 0) {
+			packet[0] = 6;
+			broadcastPacket(server, packet, 2);
+		}
+		packet[0] = 2;
+		broadcastPacket(server, packet, 2);
 	} else {
 		if (session->players[client].name) {
 			--session->numPlayers;
@@ -157,16 +165,22 @@ int main(int argc, char** argv) {
 			fprintf(stderr, "error: exiting\n");
 			return 1;
 		}
-		if (sessionData.currentState) {
-			updatePlayers(&server);
-		}
-		if (sessionData.numReady == sessionData.numPlayers && sessionData.numPlayers > 0) {
+		
+		if (sessionData.startTimer > 0) {
 			--sessionData.startTimer;
-		} else {
-			sessionData.startTimer = -1;
 		}
-		if (sessionData.startTimer == 0) {
-			startGame(&server);
+
+		if (sessionData.currentState) {
+			if (sessionData.startTimer == 0) {
+				endGame(&server, &sessionData);
+			}
+		} else {
+			if (sessionData.numReady != sessionData.numPlayers) {
+				sessionData.startTimer = -1;
+			}
+			if (sessionData.startTimer == 0) {
+				startGame(&server, &sessionData);
+			}
 		}
 	}
 

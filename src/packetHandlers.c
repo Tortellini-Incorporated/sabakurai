@@ -120,6 +120,9 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	packet[4] = data[3];
 	packet[5] = data[4];
 	broadcastPacket(server, packet, 6);
+	if (session->startTimer < 0) {
+		session->startTimer = 3600;//60 seconds
+	}
 	return 5;
 }
 
