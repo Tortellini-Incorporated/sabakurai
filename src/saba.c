@@ -82,7 +82,7 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 	while (length > 0) {
 		if (session->players[client].name == 0) {//Player announcing name
 			bytesRead = phOnConnect(server, session, client, data);
-		} else if (session->currentState) {// in game
+		} else {
 			char msgType = *(char*) data;
 			if        (msgType == 2) {//SEND_PROGRESS
 				bytesRead = phSendProgress(server, session, client, data);
