@@ -20,7 +20,7 @@ auto Window::window_resize(uint32_t x, uint32_t y, uint32_t width, uint32_t heig
 		::delwin(internal.window);
 	}
 	internal = {
-		x, y, width, height, ::newwin(height, width, y, x), internal.root
+		x, y, width, height, ::newwin(height, width, y, x), internal.root, internal.is_root
 	};
 	keypad(internal.window, TRUE);
 	component_resize();
@@ -31,17 +31,17 @@ auto Window::component_resize() -> void {}
 Window::Window() {
 	initscr();
 	internal = {
-		0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, this
+		0, 0, uint32_t( COLS ), uint32_t( LINES ), stdscr, this, true
 	};
 	keypad(internal.window, TRUE);
 }
 
 Window::Window(Window & root, bool dummy) :
-	internal{ 0, 0, 0, 0, 0, &root } {}
+	internal{ 0, 0, 0, 0, 0, &root, false } {}
 
 Window::Window(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
 	internal{
-		x, y, width, height, ::newwin(height, width, y, x), &root
+		x, y, width, height, ::newwin(height, width, y, x), &root, false
 	} {		
 	keypad(internal.window, TRUE);
 }
@@ -130,12 +130,12 @@ auto Window::block(bool value) -> void {
 }
 
 Window::~Window() {
-	if (internal.window != stdscr) {
+	if (internal.is_root) {
+		endwin();
+	} else {
 		clear();
 		refresh();
 		delwin(internal.window);
-	} else {
-		endwin();
 	}
 }
 
