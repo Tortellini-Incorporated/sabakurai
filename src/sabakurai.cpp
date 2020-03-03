@@ -14,6 +14,8 @@
 
 std::ofstream file("debug.log");
 
+auto get_ip(const std::string & ip_string) -> in_addr_t;
+
 using LogCallback = std::function<void(uint32_t color, const std::string & message)>;
 
 struct Command {
@@ -188,7 +190,7 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 					lobby.socket.addressInfo({
 						AF_INET,
 						htons(PORT),
-						lobby.curr_addr = inet_addr(args[0].c_str())
+						lobby.curr_addr = get_ip(args[0])
 					}).connect();
 				
 					auto name = lobby.players.get_self().name;
@@ -343,28 +345,22 @@ auto connected(LobbyState & lobby) -> uint32_t {
 				lobby.players.draw().refresh();
 				lobby.socket.close();
 				try {
-					auto addr = inet_addr(args[0].c_str());
-					if (addr != lobby.curr_addr) {
-						lobby.socket.addressInfo({
-							AF_INET,
-							htons(PORT),
-							inet_addr(args[0].c_str())
-						}).connect();
-					
-						auto name = lobby.players.get_self().name;
+					lobby.socket.addressInfo({
+						AF_INET,
+						htons(PORT),
+						lobby.curr_addr = get_ip(args[0])
+					}).connect();
+				
+					auto name = lobby.players.get_self().name;
 
-						lobby.socket
-							<< uint8_t( name.size() )
-							<< name
-							<< Socket::FLUSH;
+					lobby.socket
+						<< uint8_t( name.size() )
+						<< name
+						<< Socket::FLUSH;
 
-						lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
 
-						quit = RECONNECT;
-					} else {
-						lobby.log.message(/*COLOR_WHITE, */"Already connected to that server");
-						lobby.log.draw().refresh();
-					}
+					quit = RECONNECT;
 				} catch (const std::string & error) {
 					lobby.log.message(/*COLOR_RED, */std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 
@@ -516,10 +512,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 		}
 		lobby.command.move_cursor();
 	}
-	if (quit == RECONNECT) {
-		lobby.log.message("Reconnecting...");
-		lobby.log.draw().refresh();
-	}
 	return quit;
 }
 
@@ -575,3 +567,17 @@ auto get_args(int32_t start, const std::string & raw) -> std::vector<std::string
 	return args;
 }
 
+auto get_ip(const std::string & ip_string) -> in_addr_t {
+	auto hints = addrinfo{ 0 };
+	hints.ai_family   = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	auto * info = (addrinfo*) 0;
+	getaddrinfo(ip_string.c_str(), NULL, &hints, &info);
+
+	auto ret = ((sockaddr_in*) info->ai_addr)->sin_addr.s_addr;
+
+	freeaddrinfo(info);
+
+	return ret;
+}
