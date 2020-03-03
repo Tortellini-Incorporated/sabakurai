@@ -89,7 +89,7 @@ auto CommandPrompt::update() -> bool {
 			is_complete = true;
 		} else if (c == KEY_DC && cursor_pos < command.size()) {    // Delet
 			command.erase(cursor_pos, 1);
-		} else if (c == KEY_BACKSPACE && cursor_pos > 0) {          // Backspace
+		} else if ((c == KEY_BACKSPACE || c == 0x08) && cursor_pos > 0) {          // Backspace
 			command.erase(cursor_pos - 1, 1);
 			--cursor_pos;
 		} else if (c == KEY_LEFT && cursor_pos > 0) {               // Move backward
