@@ -16,6 +16,8 @@
 	extern int closeSocket(CSocket socket);
 #else
 	#include <sys/socket.h>
+	#include <sys/types.h>
+	#include <netdb.h>
 	#include <arpa/inet.h>
 	#include <poll.h>
 	#include <unistd.h>
@@ -47,7 +49,14 @@ class Socket {
 		enum Flush { FLUSH, FLUSH_LINE };
 
 	private:
+		struct SocketInfo {
+			int domain;
+			int type;
+			int protocol;
+		};
+
 		int socket;
+		SocketInfo socket_info;
 		sockaddr_in mAddressInfo;
 		bool connected;
 		std::vector<uint8_t> message;

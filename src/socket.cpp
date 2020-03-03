@@ -1,5 +1,7 @@
 #include <iostream>
 #include <fstream>
+#include <cstring>
+#include <error.h>
 
 #include "socket.hpp"
 
@@ -37,6 +39,7 @@ extern std::ofstream file;
 
 Socket::Socket(int domain, int type, int protocol) :
 	socket(::socket(domain, type, protocol)),
+	socket_info({ domain, type, protocol }),
 	mAddressInfo({}),
 	connected(false),
 	message(),
@@ -66,6 +69,7 @@ auto Socket::width(Width width) -> Socket& {
 
 auto Socket::connect() -> void {
 	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1) {
+		file << "Connection error: " << strerror(errno) << std::endl;
 		throw std::string("Failed to connect to server");
 	}
 	connected = true;
@@ -73,6 +77,7 @@ auto Socket::connect() -> void {
 
 auto Socket::close() -> void {
 	::close(socket);
+	socket = ::socket(socket_info.domain, socket_info.type, socket_info.protocol);
 	connected = false;
 }
 
