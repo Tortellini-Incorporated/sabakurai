@@ -29,6 +29,8 @@ class PlayerList : public Window {
 		auto add_player(uint32_t id, uint32_t color, bool ready, std::string name) -> void;
 		auto get_player(uint32_t id) -> Player&;
 		auto remove_player(uint32_t id) -> void;
+		auto clear_list() -> void;
+		auto get_self() -> Player&;
 		virtual auto draw() -> Window&;
 		~PlayerList();	
 };
