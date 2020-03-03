@@ -47,6 +47,15 @@ auto PlayerList::remove_player(uint32_t id) -> void {
 	players.erase(players.begin() + find_player(id));
 }
 
+auto PlayerList::clear_list() -> void {
+	players.erase(players.begin() + 1, players.end());
+	players[0].ready = false;
+}
+
+auto PlayerList::get_self() -> Player& {
+	return players[0];
+}
+
 auto PlayerList::draw() -> Window& {
 	if (internal.width > 0) {
 		for (auto i = 0; i < internal.height; ++i) {
@@ -64,7 +73,13 @@ auto PlayerList::draw() -> Window& {
 			} else {
 				print_name.append(" ");
 			}
-			print_name.append("] ").append(player.name);
+			print_name.append("] ");
+			if (i == 0) {
+				print_name.append("> ");
+			} else {
+				print_name.append("  ");
+			}
+			print_name.append(player.name);
 			if (internal.width == 3) {
 				move(1, i).print(".");
 			} else if (internal.width == 4) {

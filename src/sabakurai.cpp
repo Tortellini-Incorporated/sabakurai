@@ -242,6 +242,13 @@ int32_t main(int32_t argc, char ** argv) {
 							<< Socket::FLUSH;
 					}
 				}
+			},
+			Command{
+				"killme",
+				[&lobby](const std::vector<std::string> & args) -> void {
+					lobby.log.message("Medic", "Later");
+					lobby.log.draw().refresh();
+				}
 			}
 		};
 
