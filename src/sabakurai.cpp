@@ -38,8 +38,8 @@ struct Command {
 	}
 };
 
-void dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & log);
-std::vector<std::string> get_args(int32_t start, const std::string & raw);
+auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & log) -> void;
+auto get_args(int32_t start, const std::string & raw) -> std::vector<std::string>;
 
 struct LobbyState {
 	Box root;
@@ -56,10 +56,20 @@ struct LobbyState {
 	Split split3;
 
 	Socket socket;
+	uint32_t curr_addr;
 };
 
-int32_t main(int32_t argc, char ** argv) {
-	auto ip = std::string();
+auto disconnected(LobbyState & lobby) -> uint32_t;
+auto connected(LobbyState & lobby) -> uint32_t;
+
+const static auto
+	DISCONNECTED = 0x00,
+	CONNECTED    = 0x01,
+	RECONNECT    = 0x02,
+	QUIT         = 0x03;
+
+auto main(int32_t argc, char ** argv) -> int32_t {
+	/*auto ip = std::string();
 	if (argc > 1) {
 		ip = argv[1];
 	} else {
@@ -77,7 +87,7 @@ int32_t main(int32_t argc, char ** argv) {
 	while (255 < username.size() || username.size() < 1) {
 		std::cout << "Username must be between 1 and 255 characters long.\nPlease enter a username: " << std::flush;
 		std::getline(std::cin, username);
-	}
+	}*/
 
 	LobbyState lobby = {
 		{ "" },
@@ -121,7 +131,6 @@ int32_t main(int32_t argc, char ** argv) {
 		},
 		{ PF_INET, SOCK_STREAM, IPPROTO_TCP }
 	};
-	lobby.root.block(false);
 
 	cbreak();
 	noecho();
@@ -134,222 +143,387 @@ int32_t main(int32_t argc, char ** argv) {
 	lobby.split2.set_children(&lobby.split3, &lobby.player_box);
 	lobby.split.set_children(&lobby.title_box, &lobby.split2);
 	lobby.root.set_child(&lobby.split);
-	
+
 	lobby.log.message("Welcome to sabakurai! For assistance please enter /help");
 
+	lobby.command.block(false);
 	lobby.root.draw().refresh();
 
-	try {
-		file << "Socket created successfully" << std::endl;
-
-		file << "Trying to connect to server..." << std::endl;
-		lobby.socket.addressInfo({
-			AF_INET,
-			htons(PORT),
-			inet_addr(ip.c_str())
-		}).connect();
-		file << "Connected to server at ip '" << ip << '\'' << std::endl;
-
-		file << "Sending user info..." << std::endl;
-		lobby.socket
-			<< uint8_t( username.size() )
-			<< username
-			<< Socket::FLUSH;
-
-		auto my_id = lobby.socket.read();
-		auto player_count = lobby.socket.read();
-		file << "Id: " << (uint32_t) my_id << ", " << (uint32_t) player_count << std::endl;
-		for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
-			auto id    = uint32_t( lobby.socket.read() );
-			auto ready = bool( lobby.socket.read() );
-			auto name  = std::string();
-			lobby.socket.width(Socket::U8) >> name;
-			lobby.players.add_player(id, 0, ready, name);
+	auto state = DISCONNECTED;
+	while (state != QUIT) {
+		switch (state) {
+			case DISCONNECTED: state = disconnected(lobby); break;
+			case CONNECTED:
+			case RECONNECT:    state = connected(lobby);    break;
 		}
-		auto & self = lobby.players.get_player(my_id);
-		lobby.players.draw().refresh();
-		
-		bool quit = false;
-
-		////// COMMANDS //////
-
-		auto commands = std::vector<Command>{
-			Command{
-				"say",
-				[&lobby](const std::vector<std::string> & args) -> void {
-					auto message = std::string();
-					for (auto i = 0; i < args.size(); ++i) {
-						message.append(args[i]);
-						if (i < args.size() - 1) {
-							message.append(1, ' ');
-						}
-					}
-					file << "Say: " << message << std::endl;
-					lobby.socket
-						<< uint8_t( 0x05 )
-						<< uint16_t( message.size() )
-						<< message
-						<< Socket::FLUSH;
-				}
-			},
-			Command{
-				"quit",
-				[&quit](const std::vector<std::string> & args) -> void {
-					quit = true;
-				}
-			},
-			Command{
-				"help",
-				[&lobby](const std::vector<std::string> & args) -> void {
-					lobby.log.message(
-						"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
-						"Commands:\n"
-						"- /help          - prints the help menu\n"
-						"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
-						"- /quit          - quits the game\n"
-						"- /ready         - toggle ready status\n"
-						"- /name <string> - changes your name - UNIMPLEMENTED\n"
-					);
-					lobby.log.draw().refresh();
-				}
-			},
-			Command{
-				"ready",
-				[&lobby](const std::vector<std::string> & args) -> void {
-					lobby.socket
-						<< uint8_t( 0 )
-						<< Socket::FLUSH;
-				}
-			},
-			Command{
-				"name",
-				[&lobby](const std::vector<std::string> & args) -> void {
-					auto name = std::string();
-					for (auto i = 0; i < args.size(); ++i) {
-						name.append(args[i]);
-						if (i < args.size() - 1) {
-							name.append(1, ' ');
-						}
-					}
-					if (name.size() > 0xFF) {
-						lobby.log.message(/*0x00, */"Sorry. Max name length is 255.");
-						lobby.log.draw().refresh();
-					} else {
-						lobby.socket
-							<< uint8_t( 0x01 )
-							<< uint8_t( name.size() )
-							<< name
-							<< Socket::FLUSH;
-					}
-				}
-			},
-			Command{
-				"killme",
-				[&lobby](const std::vector<std::string> & args) -> void {
-					lobby.log.message("Medic", "Later");
-					lobby.log.draw().refresh();
-				}
-			}
-		};
-
-		file << "Looping..." << std::endl;
-
-		while (!quit) {
-			if (lobby.command.update()) {
-				if (lobby.command.complete()) {
-					dispatch_command(lobby.command.get(), commands, lobby.log);
-					lobby.command.clear_command();
-				}
-				if (lobby.command.height_change(lobby.command.height() + 1)) {
-					lobby.split3.component_resize();
-					lobby.log_box.draw();
-					lobby.command_box.draw();
-					lobby.split3.refresh();
-				} else {
-					lobby.command.draw().refresh();
-				}
-			}
-			lobby.split3.refresh();
-			constexpr static uint8_t
-				CONNECT       = 0x00,
-				TOGGLE_READY  = 0x01,
-				DISCONNECT    = 0x02,
-				START         = 0x03,
-				UPDATE_NAME   = 0x08,
-				RELAY_MESSAGE = 0x09;
-			if (lobby.socket.poll(16)) {
-				auto read = lobby.socket.read();
-				switch (read) {
-					case CONNECT: {
-						auto id   = uint32_t( lobby.socket.read() );
-						auto name = std::string();
-						lobby.socket.width(Socket::U8) >> name;
-						if (id != my_id) {
-							lobby.log.message(std::string("Player '").append(name).append("' connected"));
-							lobby.players.add_player(id, 0, false, name);
-							lobby.players.draw().refresh();
-							lobby.log.draw().refresh();
-						}
-						break;
-					}
-					case TOGGLE_READY: {
-						auto id = uint32_t( lobby.socket.read() );
-						auto & player = lobby.players.get_player(id);
-						player.ready = !player.ready;
-						if (player.ready) {
-							lobby.log.message(std::string("Player '").append(player.name).append("' is ready"));
-						} else {
-							lobby.log.message(std::string("Player '").append(player.name).append("' is no longer ready"));
-						}
-						lobby.players.draw().refresh();
-						lobby.log.draw().refresh();
-						break;
-					}
-					case DISCONNECT: {
-						auto id = uint32_t( lobby.socket.read() );
-						lobby.log.message(std::string("Player '").append(lobby.players.get_player(id).name).append("' disconnected"));
-						lobby.players.remove_player(id);
-						lobby.players.draw().refresh();
-						lobby.log.draw().refresh();
-						break;
-					}
-					case START: {
-						// TODO: Start the game
-						break;
-					}
-					case UPDATE_NAME: {
-						auto id = uint32_t( lobby.socket.read() );
-						auto & player = lobby.players.get_player(id);
-						lobby.socket.width(Socket::U8) >> player.name;
-						file << "New Name: " << player.name << std::endl;
-						lobby.players.draw().refresh();
-						break;
-					}
-					case RELAY_MESSAGE: {
-						auto id = uint32_t( lobby.socket.read() );
-						auto & player = lobby.players.get_player(id);
-						auto message = std::string();
-						lobby.socket.width(Socket::U16) >> message;
-						lobby.log.message(player.name, message);
-						lobby.log.draw().refresh();
-						break;
-					}
-					default: {
-						file << "Wakarimasen deshita " << uint32_t( read ) << std::endl;
-					}
-				}
-			}
-			lobby.command.move_cursor();
-		}
-	} catch (const std::string & message) {
-		file << "[ERROR] " << message << std::endl;
-		return -1;
 	}
 
 	return 0;
 }
 
-void dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & error) {
+auto disconnected(LobbyState & lobby) -> uint32_t {
+	auto quit = DISCONNECTED;
+
+	////// COMMANDS //////
+
+	auto commands = std::vector<Command>{
+		Command{
+			"say",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				auto message = std::string();
+				for (auto i = 0; i < args.size(); ++i) {
+					message.append(args[i]);
+					if (i < args.size() - 1) {
+						message.append(1, ' ');
+					}
+				}
+				lobby.log.message(lobby.players.get_self().name, message);
+				lobby.log.draw().refresh();
+			}
+		},
+		Command{
+			"connect",
+			[&quit, &lobby](const std::vector<std::string> & args) -> void {
+				try {
+					lobby.socket.addressInfo({
+						AF_INET,
+						htons(PORT),
+						lobby.curr_addr = inet_addr(args[0].c_str())
+					}).connect();
+				
+					auto name = lobby.players.get_self().name;
+
+					lobby.socket
+						<< uint8_t( name.size() )
+						<< name
+						<< Socket::FLUSH;
+
+					lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
+
+					quit = CONNECTED;
+				} catch (const std::string & error) {
+					lobby.log.message(/*COLOR_RED, */std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+					lobby.curr_addr = 0;
+				}
+				lobby.log.draw().refresh();
+			}
+		},
+		Command{
+			"name",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				auto name = std::string();
+				for (auto i = 0; i < args.size(); ++i) {
+					name.append(args[i]);
+					if (i < args.size() - 1) {
+						name.append(1, ' ');
+					}
+				}
+				if (name.size() > 0xFF) {
+					lobby.log.message(/*COLOR_RED, */"Sorry. Max name length is 255.");
+					lobby.log.draw().refresh();
+				} else {
+					lobby.players.get_self().name = name;
+					lobby.players.draw().refresh();
+				}
+			}
+		},
+		Command{
+			"help",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message(
+					"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
+					"Commands:\n"
+					"- /help          - prints the help menu\n"
+					"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
+					"- /quit          - quits the game\n"
+					"- /connect <ip>  - connects to the server at the ip\n"
+					"- /name <string> - changes your name\n"
+				);
+				lobby.log.draw().refresh();
+			}
+		},
+		Command{
+			"quit",
+			[&quit](const std::vector<std::string> & args) -> void {
+				quit = QUIT;
+			}
+		},
+		Command{
+			"killme",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message("Medic", "Later");
+				lobby.log.draw().refresh();
+			}
+		},
+	};
+	
+	while (quit == DISCONNECTED) {
+		if (lobby.command.update()) {
+			if (lobby.command.complete()) {
+				dispatch_command(lobby.command.get(), commands, lobby.log);
+				lobby.command.clear_command();
+			}
+			if (lobby.command.height_change(lobby.command.height() + 1)) {
+				lobby.split3.component_resize();
+				lobby.log_box.draw();
+				lobby.command_box.draw();
+				lobby.split3.refresh();
+			} else {
+				lobby.command.draw().refresh();
+			}
+			lobby.split3.refresh();
+		}
+	}
+
+	return quit;
+}
+
+auto connected(LobbyState & lobby) -> uint32_t {
+	{
+		auto my_id = lobby.socket.read();
+		auto player_count = lobby.socket.read();
+		for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
+			auto id    = uint32_t( lobby.socket.read() );
+			auto ready = bool( lobby.socket.read() );
+			auto name  = std::string();
+			lobby.socket.width(Socket::U8) >> name;
+			if (id == my_id) {
+				lobby.players.get_self().id = my_id;
+			} else {
+				lobby.players.add_player(id, 0, ready, name);
+			}
+		}
+		lobby.players.draw().refresh();
+	}
+		
+	auto quit = CONNECTED;
+
+	////// COMMANDS //////
+
+	auto commands = std::vector<Command>{
+		Command{
+			"say",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				auto message = std::string();
+				for (auto i = 0; i < args.size(); ++i) {
+					message.append(args[i]);
+					if (i < args.size() - 1) {
+						message.append(1, ' ');
+					}
+				}
+				file << "Say: " << message << std::endl;
+				lobby.socket
+					<< uint8_t( 0x05 )
+					<< uint16_t( message.size() )
+					<< message
+					<< Socket::FLUSH;
+			}
+		},
+		Command{
+			"quit",
+			[&quit](const std::vector<std::string> & args) -> void {
+				quit = QUIT;
+			}
+		},
+		Command{
+			"disconnect",
+			[&quit, &lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message(/*COLOR_WHITE, */"Disconnected from server");
+				lobby.log.draw().refresh();
+				lobby.players.clear_list();
+				lobby.players.draw().refresh();
+				lobby.socket.close();
+				quit = DISCONNECTED;
+			}
+		},
+		Command{
+			"connect",
+			[&quit, &lobby](const std::vector<std::string> & args) -> void {
+				lobby.players.clear_list();
+				lobby.players.draw().refresh();
+				lobby.socket.close();
+				try {
+					auto addr = inet_addr(args[0].c_str());
+					if (addr != lobby.curr_addr) {
+						lobby.socket.addressInfo({
+							AF_INET,
+							htons(PORT),
+							inet_addr(args[0].c_str())
+						}).connect();
+					
+						auto name = lobby.players.get_self().name;
+
+						lobby.socket
+							<< uint8_t( name.size() )
+							<< name
+							<< Socket::FLUSH;
+
+						lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
+
+						quit = RECONNECT;
+					} else {
+						lobby.log.message(/*COLOR_WHITE, */"Already connected to that server");
+						lobby.log.draw().refresh();
+					}
+				} catch (const std::string & error) {
+					lobby.log.message(/*COLOR_RED, */std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+
+					quit = DISCONNECTED;
+				}
+				lobby.log.draw().refresh();
+			}
+		},
+		Command{
+			"help",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message(
+					"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
+					"Commands:\n"
+					"- /help          - prints the help menu\n"
+					"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
+					"- /quit          - quits the game\n"
+					"- /disconnect    - disconnects from the server\n"
+					"- /connect <ip>  - connects to the server at the ip\n"
+					"- /ready         - toggle ready status\n"
+					"- /name <string> - changes your name\n"
+				);
+				lobby.log.draw().refresh();
+			}
+		},
+		Command{
+			"ready",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.socket
+					<< uint8_t( 0 )
+					<< Socket::FLUSH;
+			}
+		},
+		Command{
+			"name",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				auto name = std::string();
+				for (auto i = 0; i < args.size(); ++i) {
+					name.append(args[i]);
+					if (i < args.size() - 1) {
+						name.append(1, ' ');
+					}
+				}
+				if (name.size() > 0xFF) {
+					lobby.log.message(/*COLOR_RED, */"Sorry. Max name length is 255.");
+					lobby.log.draw().refresh();
+				} else {
+					lobby.socket
+						<< uint8_t( 0x01 )
+						<< uint8_t( name.size() )
+						<< name
+						<< Socket::FLUSH;
+				}
+			}
+		},
+		Command{
+			"killme",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message("Medic", "Later");
+				lobby.log.draw().refresh();
+			}
+		}
+	};
+
+	while (quit == CONNECTED) {
+		if (lobby.command.update()) {
+			if (lobby.command.complete()) {
+				dispatch_command(lobby.command.get(), commands, lobby.log);
+				lobby.command.clear_command();
+			}
+			if (lobby.command.height_change(lobby.command.height() + 1)) {
+				lobby.split3.component_resize();
+				lobby.log_box.draw();
+				lobby.command_box.draw();
+				lobby.split3.refresh();
+			} else {
+				lobby.command.draw().refresh();
+			}
+			lobby.split3.refresh();
+		}
+		constexpr static uint8_t
+			CONNECT       = 0x00,
+			TOGGLE_READY  = 0x01,
+			DISCONNECT    = 0x02,
+			START         = 0x03,
+			UPDATE_NAME   = 0x08,
+			RELAY_MESSAGE = 0x09;
+		if (lobby.socket.poll(16)) {
+			auto read = lobby.socket.read();
+			switch (read) {
+				case CONNECT: {
+					auto id   = uint32_t( lobby.socket.read() );
+					auto name = std::string();
+					lobby.socket.width(Socket::U8) >> name;
+					if (id != lobby.players.get_self().id) {
+						lobby.log.message(std::string("Player '").append(name).append("' connected"));
+						lobby.players.add_player(id, 0, false, name);
+						lobby.players.draw().refresh();
+						lobby.log.draw().refresh();
+					}
+					break;
+				}
+				case TOGGLE_READY: {
+					auto id = uint32_t( lobby.socket.read() );
+					auto & player = lobby.players.get_player(id);
+					player.ready = !player.ready;
+					if (player.ready) {
+						lobby.log.message(std::string("Player '").append(player.name).append("' is ready"));
+					} else {
+						lobby.log.message(std::string("Player '").append(player.name).append("' is no longer ready"));
+					}
+					lobby.players.draw().refresh();
+					lobby.log.draw().refresh();
+					break;
+				}
+				case DISCONNECT: {
+					auto id = uint32_t( lobby.socket.read() );
+					lobby.log.message(std::string("Player '").append(lobby.players.get_player(id).name).append("' disconnected"));
+					lobby.players.remove_player(id);
+					lobby.players.draw().refresh();
+					lobby.log.draw().refresh();
+					break;
+				}
+				case START: {
+					// TODO: Start the game
+					break;
+				}
+				case UPDATE_NAME: {
+					auto id = uint32_t( lobby.socket.read() );
+					auto & player = lobby.players.get_player(id);
+					lobby.socket.width(Socket::U8) >> player.name;
+					file << "New Name: " << player.name << std::endl;
+					lobby.players.draw().refresh();
+					break;
+				}
+				case RELAY_MESSAGE: {
+					auto id = uint32_t( lobby.socket.read() );
+					auto & player = lobby.players.get_player(id);
+					auto message = std::string();
+					lobby.socket.width(Socket::U16) >> message;
+					lobby.log.message(player.name, message);
+					lobby.log.draw().refresh();
+					break;
+				}
+				default: {
+					file << "Wakarimasen deshita " << uint32_t( read ) << std::endl;
+				}
+			}
+		}
+		lobby.command.move_cursor();
+	}
+	if (quit == RECONNECT) {
+		lobby.log.message("Reconnecting...");
+		lobby.log.draw().refresh();
+	}
+	return quit;
+}
+
+auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & error) -> void {
 	file << "Dispatching: " << raw << std::endl;
 	if (raw.size() > 0) {
 		if (raw[0] != '/') {
@@ -370,13 +544,14 @@ void dispatch_command(const std::string & raw, const std::vector<Command> & comm
 			
 			if (i == commands.size()) {
 				auto error_message = std::string("Undefined command '").append(raw, 0, end).append(1, '\'');
-				error.message(/*0x00, */error_message);
+				error.message(/*COLOR_RED, */error_message);
+				error.draw().refresh();
 			}
 		}
 	}
 }
 
-std::vector<std::string> get_args(int32_t start, const std::string & raw) {
+auto get_args(int32_t start, const std::string & raw) -> std::vector<std::string> {
 	auto args = std::vector<std::string>{};
 	auto quoted = false;
 	auto consume_next = false;
