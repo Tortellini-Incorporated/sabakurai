@@ -79,7 +79,7 @@ auto CommandPrompt::update() -> bool {
 		if (' ' <= c && c <= '~') {                                 // Printable ascii character
 			command.insert(cursor_pos, 1, c);
 			++cursor_pos;
-		} else if (c == 0x9) {                                  // Tab
+		} else if (c == 0x9) {                                      // Tab
 			command.insert(cursor_pos, 4, ' ');
 			cursor_pos += 4;
 		} else if (c == KEY_BTAB) {                                 // New line -- Shift + Tab

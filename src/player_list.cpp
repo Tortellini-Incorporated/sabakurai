@@ -1,3 +1,5 @@
+#include <random>
+#include <ctime>
 #include <fstream>
 
 #include "player_list.hpp"
@@ -23,17 +25,53 @@ auto PlayerList::find_player(uint32_t id) -> uint32_t {
 PlayerList::PlayerList() :
 	Window(),
 	offset(0),
-	players(0) {}
+	players(0) {
+
+	auto random = std::default_random_engine{ (long unsigned int) time(0) };
+	auto dist   = std::uniform_int_distribution<char>( 0, 9 );
+
+	auto name = std::string("Entity ");
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+
+	players.push_back({ 0, 0, false, name });
+}
 
 PlayerList::PlayerList(Window & root, bool dummy) :
 	Window(root, true),
 	offset(0),
-	players(0) {}
+	players(0) {
+	
+	auto random = std::default_random_engine{ (long unsigned int) time(0) };
+	auto dist   = std::uniform_int_distribution<char>( 0, 9 );
+
+	auto name = std::string("Entity ");
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+
+	players.push_back({ 0, 0, false, name });
+}
 
 PlayerList::PlayerList(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height) :
 	Window(root, x, y, width, height),
 	offset(0),
-	players(0) {}
+	players(0) {
+	
+	auto random = std::default_random_engine{ (long unsigned int) time(0) };
+	auto dist   = std::uniform_int_distribution<char>( 0, 9 );
+
+	auto name = std::string("Entity ");
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	name.append(1, '0' + dist(random));
+	
+	players.push_back({ 0, 0, false, name });
+}
 
 auto PlayerList::add_player(uint32_t id, uint32_t color, bool ready, std::string name) -> void {
 	players.push_back({ id, color, ready, name });

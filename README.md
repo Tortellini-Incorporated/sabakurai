@@ -19,7 +19,7 @@ These are the messages sent to the client by the server
 struct OnConnect {
 	uint8_t client_id;             // The id assigned to the client that just connected
 	uint8_t player_count;          // The number of players already connected to the server
-	Player  players[player_count]; // The list of information for already connected players excluding the player who just connected
+	Player  players[player_count]; // The list of information for already connected players including the player who just connected
 };//server should tell the client if there is a game currently going on desho
 
 struct Player {
