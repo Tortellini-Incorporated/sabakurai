@@ -9,6 +9,7 @@
 class Log : public Window {
 	protected:
 		struct Message {
+			uint32_t    color;
 			uint32_t    author_length;
 			std::string message;
 		};
@@ -27,7 +28,9 @@ class Log : public Window {
 		auto scroll_up(uint32_t amount) -> void;
 		auto scroll_down(uint32_t amount) -> void;
 		auto message(const std::string & message) -> void;
+		auto message(uint32_t color, const std::string & message) -> void;
 		auto message(const std::string & author, const std::string & message) -> void;
+		auto message(uint32_t color, const std::string & author, const std::string & message) -> void;
 		virtual auto draw() -> Window&;
 		~Log();
 };

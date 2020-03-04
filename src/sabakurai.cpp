@@ -70,6 +70,11 @@ const static auto
 	RECONNECT    = 0x02,
 	QUIT         = 0x03;
 
+const static auto
+	COLOR_DEFAULT  = 0x00,
+	COLOR_INVERTED = 0x01,
+	COLOR_ERROR    = 0x02;
+
 auto main(int32_t argc, char ** argv) -> int32_t {
 	/*auto ip = std::string();
 	if (argc > 1) {
@@ -137,6 +142,19 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 	cbreak();
 	noecho();
 
+	if (!has_colors()) {
+		return -1;
+	}
+
+	start_color();
+
+	if (COLOR_PAIRS < 3) {
+		return -2;
+	}
+	
+	init_pair(COLOR_INVERTED, COLOR_BLACK, COLOR_WHITE);
+	init_pair(COLOR_ERROR,    COLOR_RED,   COLOR_BLACK);
+
 	lobby.title_box.set_child(&lobby.title);
 	lobby.player_box.set_child(&lobby.players);
 	lobby.log_box.set_child(&lobby.log);
@@ -200,11 +218,11 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 						<< name
 						<< Socket::FLUSH;
 
-					lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
 
 					quit = CONNECTED;
 				} catch (const std::string & error) {
-					lobby.log.message(/*COLOR_RED, */std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 					lobby.curr_addr = 0;
 				}
 				lobby.log.draw().refresh();
@@ -221,7 +239,7 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 					}
 				}
 				if (name.size() > 0xFF) {
-					lobby.log.message(/*COLOR_RED, */"Sorry. Max name length is 255.");
+					lobby.log.message(COLOR_ERROR, "Sorry. Max name length is 255.");
 					lobby.log.draw().refresh();
 				} else {
 					lobby.players.get_self().name = name;
@@ -330,7 +348,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 		Command{
 			"disconnect",
 			[&quit, &lobby](const std::vector<std::string> & args) -> void {
-				lobby.log.message(/*COLOR_WHITE, */"Disconnected from server");
+				lobby.log.message(COLOR_DEFAULT, "Disconnected from server");
 				lobby.log.draw().refresh();
 				lobby.players.clear_list();
 				lobby.players.draw().refresh();
@@ -358,11 +376,11 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						<< name
 						<< Socket::FLUSH;
 
-					lobby.log.message(/*COLOR_WHITE, */std::string("Connected to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
 
 					quit = RECONNECT;
 				} catch (const std::string & error) {
-					lobby.log.message(/*COLOR_RED, */std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 
 					quit = DISCONNECTED;
 				}
@@ -405,7 +423,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					}
 				}
 				if (name.size() > 0xFF) {
-					lobby.log.message(/*COLOR_RED, */"Sorry. Max name length is 255.");
+					lobby.log.message(COLOR_ERROR, "Sorry. Max name length is 255.");
 					lobby.log.draw().refresh();
 				} else {
 					lobby.socket
@@ -536,7 +554,7 @@ auto dispatch_command(const std::string & raw, const std::vector<Command> & comm
 			
 			if (i == commands.size()) {
 				auto error_message = std::string("Undefined command '").append(raw, 0, end).append(1, '\'');
-				error.message(/*COLOR_RED, */error_message);
+				error.message(COLOR_ERROR, error_message);
 				error.draw().refresh();
 			}
 		}
