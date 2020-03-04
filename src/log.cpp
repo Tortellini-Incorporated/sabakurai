@@ -56,7 +56,14 @@ auto Log::scroll_down(uint32_t amount) -> void {
 }
 
 auto Log::message(const std::string & message) -> void {
-	log.push_back({ uint32_t( message.size() ), message });
+	log.push_back({ 0, uint32_t( message.size() ), message });
+	if (offset > 0) {
+		++offset;
+	}
+}
+
+auto Log::message(uint32_t color, const std::string & message) -> void {
+	log.push_back({ color, uint32_t( message.size() ), message });
 	if (offset > 0) {
 		++offset;
 	}
@@ -72,7 +79,23 @@ auto Log::message(const std::string & author, const std::string & message) -> vo
 			expanded.push_back(c);
 		}
 	}
-	log.push_back({ uint32_t( author.size() + 3 ), std::move(expanded) });
+	log.push_back({ 0, uint32_t( author.size() + 3 ), std::move(expanded) });
+	if (offset > 0) {
+		++offset;
+	}
+}
+
+auto Log::message(uint32_t color, const std::string & author, const std::string & message) -> void {
+	auto expanded = std::string("[").append(author).append("]: ");
+	for (auto i = 0; i < message.size(); ++i) {
+		auto c = message[i];
+		if (c == '\t') {
+			expanded.append("    ");
+		} else {
+			expanded.push_back(c);
+		}
+	}
+	log.push_back({ color, uint32_t( author.size() + 3 ), std::move(expanded) });
 	if (offset > 0) {
 		++offset;
 	}
