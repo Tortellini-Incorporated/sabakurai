@@ -359,30 +359,35 @@ auto connected(LobbyState & lobby) -> uint32_t {
 		Command{
 			"connect",
 			[&quit, &lobby](const std::vector<std::string> & args) -> void {
-				lobby.players.clear_list();
-				lobby.players.draw().refresh();
-				lobby.socket.close();
-				try {
-					lobby.socket.addressInfo({
-						AF_INET,
-						htons(PORT),
-						lobby.curr_addr = get_ip(args[0])
-					}).connect();
-				
-					auto name = lobby.players.get_self().name;
+				auto new_ip = get_ip(args[0]);
+				if (new_ip != lobby.curr_addr) {
+					lobby.players.clear_list();
+					lobby.players.draw().refresh();
+					lobby.socket.close();
+					try {
+						lobby.socket.addressInfo({
+							AF_INET,
+							htons(PORT),
+							lobby.curr_addr = get_ip(args[0])
+						}).connect();
+					
+						auto name = lobby.players.get_self().name;
 
-					lobby.socket
-						<< uint8_t( name.size() )
-						<< name
-						<< Socket::FLUSH;
+						lobby.socket
+							<< uint8_t( name.size() )
+							<< name
+							<< Socket::FLUSH;
 
-					lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
+						lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
 
-					quit = RECONNECT;
-				} catch (const std::string & error) {
-					lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+						quit = RECONNECT;	
+					} catch (const std::string & error) {
+						lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 
-					quit = DISCONNECTED;
+						quit = DISCONNECTED;
+					}
+				} else {
+					lobby.log.message(COLOR_DEFAULT, std::string("Already connected to server '").append(args[0]).append(1, '\''));
 				}
 				lobby.log.draw().refresh();
 			}
