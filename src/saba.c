@@ -157,7 +157,6 @@ int main(int argc, char** argv) {
 
 	printf("server starting\n");
 
-	int interval = 5;
 	sessionData.startTimer = -1;
 
 	while (1) {
