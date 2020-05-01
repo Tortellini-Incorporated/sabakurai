@@ -23,20 +23,10 @@ struct OnConnect {
 	uint8_t in_progress;           // Whether or not a game is in progress on the server
 };//server should tell the client if there is a game currently going on desho
 
-/* --- If the game IS NOT in progress --- */
-
 struct Player {
 	uint8_t id;                // The id of the player
 	uint8_t ready;             // Whether the player is ready or not
-	uint8_t name_length;       // The length of the player's name in bytes
-	uint8_t name[name_length]; // The name of the player
-};
-
-/* --- If the game IS in progress --- */
-
-struct Player {
-	uint8_t id;                // The id of the player
-	uint8_t spectating;        // Whether the player is spectating or not
+	uint8_t spectator;         // Whether the player is a spectator or not
 	uint8_t name_length;       // The length of the player's name in bytes
 	uint8_t name[name_length]; // The name of the player
 };
@@ -105,7 +95,7 @@ struct Start {
 	const MessageType type = START; // 3
 	uint16_t message_length;        // The length of the message to by typed
 	char message[message_length];   // The message to by typed
-}
+};
 ```
 
 #### UPDATE_NAME
@@ -119,7 +109,7 @@ struct UpdateName {
 	uint8_t id;                           // The id of the player who changed their name
 	uint8_t name_length;                  // The length of the players new name
 	char new_name[name_length];           // The new name of the player
-}
+};
 ```
 
 #### RELAY_MESSAGE
@@ -133,7 +123,7 @@ struct RelayMessage {
 	uint8_t id;                             // The id of the player who sent the message
 	uint16_t message_length;                // The length of the message
 	char message[message_length];           // The message
-}
+};
 ```
 
 #### RELAY_SPECTATE
@@ -145,7 +135,7 @@ struct RelayMessage {
 struct RelaySpectate {
 	const MessageType type = RELAY_SPECTATE; // 10
 	uint8_t id;                              // The id of the player changing their spectate status
-}
+};
 ```
 
 ### Playing
@@ -167,7 +157,7 @@ struct UpdateProgress {
 	const MessageType type = UPDATE_PROGRESS; // 4
 	uint8_t id;                               // The id of the player who made progress
 	uint16_t progress;                        // The new index they are at
-}
+};
 ```
 
 #### PLAYER_COMPLETED
@@ -180,7 +170,7 @@ struct PlayerCompleted {
 	const MessageType type = PLAYER_COMPLETED; // 5
 	uint8_t id;                                // The id of the player who won
 	uint32_t time;                             // The time at which they won
-}
+};
 ```
 
 #### PLAYER_EXIT_GAME
@@ -192,7 +182,7 @@ struct PlayerCompleted {
 struct PlayerExitGame {
 	const MessageType type = PLAYER_EXIT_GAME; // 6
 	uint8_t id;                                // The id of the player who disconnected
-}
+};
 ```
 
 #### GAME_OVER
@@ -205,7 +195,7 @@ struct GameOver {
 	const MessageType type = GAME_OVER; // 7
 	uint8_t numPlayers;                 // The number of players in the lobby
 	Player players[numPlayers];         // this array includes _all_ players, including the one recieving the message
-}
+};
 ```
 
 for more details on the Player struct see [ON_CONNECT](#ON_CONNECT)
@@ -272,7 +262,7 @@ struct SendMessage {
 	const MessageType type = SEND_MESSAGE; // 5
 	uint16_t message_length;               // The length of the message
 	char message[message_length];          // The message
-}
+};
 ```
 
 #### SPECTATE
@@ -283,7 +273,7 @@ struct SendMessage {
 ```cpp
 struct Spectate {
 	const MessageType type = SPECTATE; // 6
-}
+};
 ```
 
 ### Playing
@@ -314,6 +304,6 @@ struct SendProgress {
 struct CompletedText {
 	const MessageType = COMPLETED_TEXT; // 3
 	uint32_t time;                      // The time at which the text was finished being typed
-}
+};
 ```
 
