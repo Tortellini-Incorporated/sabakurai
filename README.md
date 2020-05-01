@@ -47,14 +47,15 @@ struct Player {
 
 The first byte of every message indicates the type of message it is
 
-| TYPE                            | VALUE |
-|---------------------------------|-------|
-| [CONNECT](#CONNECT)             | 0     |
-| [TOGGLE_READY](#TOGGLE_READY)   | 1     |
-| [DISCONNECT](#DISCONNECT)       | 2     |
-| [START](#START)                 | 3     |
-| [UPDATE_NAME](#UPDATE_NAME)     | 8     |
-| [RELAY_MESSAGE](#RELAY_MESSAGE) | 9     |
+| TYPE                              | VALUE |
+|-----------------------------------|-------|
+| [CONNECT](#CONNECT)               | 0     |
+| [TOGGLE_READY](#TOGGLE_READY)     | 1     |
+| [DISCONNECT](#DISCONNECT)         | 2     |
+| [START](#START)                   | 3     |
+| [UPDATE_NAME](#UPDATE_NAME)       | 8     |
+| [RELAY_MESSAGE](#RELAY_MESSAGE)   | 9     |
+| [RELAY_SPECTATE](#RELAY_SPECTATE) | 10    |
 
 #### CONNECT
 
@@ -132,6 +133,18 @@ struct RelayMessage {
 	uint8_t id;                             // The id of the player who sent the message
 	uint16_t message_length;                // The length of the message
 	char message[message_length];           // The message
+}
+```
+
+#### RELAY_SPECTATE
+
+ - [ ] saba implemented
+ - [ ] kurai implemented
+ 
+```cpp
+struct RelaySpectate {
+	const MessageType type = RELAY_SPECTATE; // 10
+	uint8_t id;                              // The id of the player changing their spectate status
 }
 ```
 
@@ -262,7 +275,7 @@ struct SendMessage {
 }
 ```
 
-### SPECTATE
+#### SPECTATE
 
  - [ ] saba implemented
  - [ ] kurai implemented
@@ -271,6 +284,7 @@ struct SendMessage {
 struct Spectate {
 	const MessageType type = SPECTATE; // 6
 }
+```
 
 ### Playing
 
