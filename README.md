@@ -223,6 +223,7 @@ The first byte of every message indicates the type of message it is
 | [TOGGLE_READY](#TOGGLE_READY) | 0     |
 | [CHANGE_NAME](#CHANGE_NAME)   | 1     |
 | [SEND_MESSAGE](#SEND_MESSAGE) | 5     |
+| [SPECTATE](#SPECTATE)         | 6     |
 
 #### TOGGLE_READY
 
@@ -231,7 +232,7 @@ The first byte of every message indicates the type of message it is
 
 ```cpp
 struct ToggleReady {
-	const MessageType type = TOGGLE_READY;	// 0
+	const MessageType type = TOGGLE_READY; // 0
 };
 ```
 
@@ -242,9 +243,9 @@ struct ToggleReady {
 
 ```cpp
 struct ChangeName {
-	const MessageType type = CHANGE_NAME;	// 1
-	uint8_t name_length;					// The length of the client's name in bytes
-	uint8_t name[name_length];				// The name of the client
+	const MessageType type = CHANGE_NAME; // 1
+	uint8_t name_length;                  // The length of the client's name in bytes
+	uint8_t name[name_length];            // The name of the client
 };
 ```
 
@@ -261,6 +262,16 @@ struct SendMessage {
 }
 ```
 
+### SPECTATE
+
+ - [ ] saba implemented
+ - [ ] kurai implemented
+ 
+```cpp
+struct Spectate {
+	const MessageType type = SPECTATE; // 6
+}
+
 ### Playing
 
 | TYPE                              | VALUE |
@@ -276,7 +287,7 @@ struct SendMessage {
 ```cpp
 struct SendProgress {
 	const MessageType = SEND_PROGRESS; // 2
-	uint16_t character_index;           // The index in the text the player is at
+	uint16_t character_index;          // The index in the text the player is at
 };
 ```
 
