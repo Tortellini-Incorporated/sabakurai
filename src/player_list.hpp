@@ -12,6 +12,7 @@ class PlayerList : public Window {
 			uint32_t id;
 			uint32_t color;
 			bool ready;
+			bool spectate;
 			std::string name;
 		};
 
@@ -26,11 +27,13 @@ class PlayerList : public Window {
 		PlayerList();
 		PlayerList(Window & root, bool dummy);
 		PlayerList(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
-		auto add_player(uint32_t id, uint32_t color, bool ready, std::string name) -> void;
+		auto add_player(uint32_t id, uint32_t color, bool ready, bool spectator, std::string name) -> void;
 		auto get_player(uint32_t id) -> Player&;
+		auto get_player_index(uint32_t index) -> Player&;
+		auto get_self() -> Player&;
 		auto remove_player(uint32_t id) -> void;
 		auto clear_list() -> void;
-		auto get_self() -> Player&;
+		auto length() -> size_t;
 		virtual auto draw() -> Window&;
 		~PlayerList();	
 };

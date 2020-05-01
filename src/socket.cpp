@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -48,8 +49,8 @@ Socket::Socket(int domain, int type, int protocol) :
 	if (socket == -1) {
 		throw std::string("Failed to create socket");
 	}
-	pollFd.fd = socket;
-	pollFd.events = POLLIN;
+	pollFd.fd     = socket;
+	pollFd.events = POLLIN | POLLOUT;
 }
 
 auto Socket::addressInfo(const sockaddr_in & addressInfo) -> Socket& {
@@ -67,12 +68,32 @@ auto Socket::width(Width width) -> Socket& {
 	return *this;
 }
 
-auto Socket::connect() -> void {
-	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1) {
+auto Socket::connect(uint32_t timeout) -> bool {
+	::fcntl(socket, F_SETFL, O_NONBLOCK);
+	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1 && errno != EINPROGRESS) {
 		file << "Connection error: " << strerror(errno) << std::endl;
-		throw std::string("Failed to connect to server");
+		close();
+		return connected = false;
 	}
-	connected = true;
+	::fcntl(socket, F_SETFL, ~O_NONBLOCK);
+	
+	if (::poll(&pollFd, 1, timeout) < 1) {
+		file << "Connection timed out" << std::endl;
+		close();
+		return connected = false;
+	}
+
+	auto option   = int32_t();
+	auto int_size = sizeof(int32_t);
+	if (getsockopt(socket, SOL_SOCKET, SO_ERROR, (void*) &option, (socklen_t *) &int_size)) {
+		file << "Connection error: " << errno << ", " << strerror(errno) << std::endl;
+		return connected = false;
+	}
+	if (option) {
+		file << "Connection error: " << option << ", " << strerror(option) << std::endl;
+		return connected = false;
+	}
+	return connected = true;
 }
 
 auto Socket::close() -> void {
@@ -93,7 +114,6 @@ auto Socket::poll(uint32_t timeout) -> bool {
 auto Socket::read() -> uint8_t {
 	char c;
 	recv(socket, &c, 1, mFlags.flags);
-	file << "C: " << (uint32_t) c << std::endl;
 	return c;
 }
 

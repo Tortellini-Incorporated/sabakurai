@@ -13,7 +13,7 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 	int total_message_len = 2;
 	for (int i = 0; i < server->maxClients; ++i) {
 		if ((server->clients[i] || i == client) && session->players[i].name) {
-			total_message_len += 3 + strlen(session->players[i].name);
+			total_message_len += 4 + strlen(session->players[i].name);
 		}
 	}
 	msgData = malloc(total_message_len * sizeof(char));
@@ -24,7 +24,8 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 		if ((server->clients[i] || i == client) && session->players[i].name) {
 			size_t name_len = strlen(session->players[i].name) * sizeof(char);
 			msgData[index++] = i;
-			msgData[index++] = session->players[i].progress + 1;
+			msgData[index++] = session->players[i].progress  + 1;
+			msgData[index++] = session->players[i].spectator;
 			msgData[index++] = name_len;
 			memcpy(msgData + index, session->players[i].name, name_len);
 			index += name_len;
@@ -60,11 +61,23 @@ int phToggleReady(ServerSession* server, GameData* session, int client, char* da
 	return 1;
 }
 
+int phToggleSpectate(ServerSession* server, GameData* session, int client, char* data) {
+	session->numSpectators += -2 * session->players[client].spectator + 1;
+	session->players[client].spectator = !session->players[client].spectator;
+	printf("debug: %s toggled spectator, now %d\n", session->players[client].name, session->players[client].spectator);
+	char sdata[2];
+	sdata[0] = 10;
+	sdata[1] = client;
+	broadcastPacket(server, sdata, 2);
+	return 1;
+}
+
 int phChangeName(ServerSession* server, GameData* session, int client, char* data) {	// 1
 	int nameLen = data[1];
 	printf("debug: [%s] changing their name to ", session->players[client].name);
-	session->players[client].name = realloc(session->players[client].name, nameLen * sizeof(char));
+	session->players[client].name = realloc(session->players[client].name, nameLen * sizeof(char) + 1);
 	memcpy(session->players[client].name, data + 2, nameLen);
+	session->players[client].name[nameLen] = '\0';
 	printf("[%s]\n", session->players[client].name);
 
 	char* scratch = malloc(sizeof(char) * (nameLen + 3));
@@ -92,6 +105,24 @@ int phSendMessage(ServerSession* server, GameData* session, int client, char* da
 	printf("debug: [%s]:[%s]\n", session->players[client].name, scratch + 4);
 	free(scratch);
 	return 3 + msgLen;
+}
+
+int phDisconnect(ServerSession* server, GameData* session, int client, char* data) { // 7
+	printf("debug: [%s] disconnected\n", session->players[client].name);
+	if (session->players[client].name) {
+		--session->numPlayers;
+		if (!session->players[client].progress) {
+			--session->numReady;
+		}
+		free(session->players[client].name);
+		char packet_data[2];
+		packet_data[0] = 2;
+		packet_data[1] = client;
+		broadcastPacket(server, packet_data, 2);
+		close(server->clients[client]);
+		server->clients[client] = 0;
+	}
+	return 1;
 }
 
 // INGAME
@@ -126,11 +157,11 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	return 5;
 }
 
-int phExitToLobby(ServerSession* server, GameData* session, int client, char* data) {	// 4
+/* int phExitToLobby(ServerSession* server, GameData* session, int client, char* data) {	// 4
 	session->players[client].progress = -1;
 	char packet[2];
 	packet[0] = 6;
 	packet[1] = client;
 	broadcastPacket(server, packet, 2);
 	return 1;
-}
+} */

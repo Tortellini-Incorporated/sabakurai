@@ -20,9 +20,13 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 
 int phToggleReady(ServerSession* server, GameData* session, int client, char* data); // 0
 
+int phToggleSpectate(ServerSession* server, GameData* session, int client, char* data); // 6
+
 int phChangeName(ServerSession* server, GameData* session, int client, char* data);	// 1
 
 int phSendMessage(ServerSession* server, GameData* session, int client, char* data);	// 5
+
+int phDisconnect(ServerSession* server, GameData* session, int client, char* data); // 7
 
 // INGAME
 
@@ -30,6 +34,6 @@ int phSendProgress(ServerSession* server, GameData* session, int client, char* d
 
 int phCompletedText(ServerSession* server, GameData* session, int client, char* data);	// 3
 
-int phExitToLobby(ServerSession* server, GameData* session, int client, char* data);	// 4
+// int phExitToLobby(ServerSession* server, GameData* session, int client, char* data);	// 4
 
 #endif

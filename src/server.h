@@ -21,8 +21,8 @@ typedef struct ServerSession {
 } ServerSession;
 
 typedef enum ServerState {
-	SSTATE_NORMAL			= 0,
-	SSTATE_CALM_EXIT		= 1,
+	SSTATE_NORMAL			=  0,
+	SSTATE_CALM_EXIT		=  1,
 	SSTATE_ERROR_UNKNOWN	= -1,
 	SSTATE_INVALID_SOCKET	= -2,
 	SSTATE_FAILED_BIND		= -3,

@@ -6,6 +6,7 @@
 typedef struct Player {
 	char* name;
 	int progress;
+	int spectator;
 	unsigned int finishTime;
 } Player;
 
@@ -13,6 +14,7 @@ typedef struct GameData {
 	Player players[MAX_CLIENTS];
 	int numPlayers;
 	int numReady;
+	int numSpectators;
 	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
 	int startTimer;
 } GameData;

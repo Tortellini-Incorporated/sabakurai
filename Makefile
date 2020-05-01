@@ -3,7 +3,7 @@ PORT=4730
 sabakurai: out/socket.o out/command_prompt.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o src/sabakurai.cpp
 	g++ $(flags) -DPORT=$(PORT) src/sabakurai.cpp out/socket.o out/command_prompt.o out/log.o out/player_list.o out/title.o out/split.o out/box.o out/window.o out/sleep.o -lncurses -o $@
 
-saba: src/saba.c src/packetHandlers.c src/server.c
+saba: src/saba.c src/packetHandlers.c src/packetHandlers.h src/server.c src/packetHandlers.h
 	gcc $(flags) -DPORT=$(PORT) src/saba.c src/packetHandlers.c src/server.c -o $@
 
 key_test: src/key_test.cpp
