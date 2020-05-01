@@ -73,7 +73,7 @@ class Socket {
 		auto addressInfo(const sockaddr_in & addressInfo) -> Socket&;
 		auto flags(Flags flags) -> Socket&;
 		auto width(Width width) -> Socket&;
-		auto connect() -> void;
+		auto connect(uint32_t timeout) -> bool;
 		auto close() -> void;
 
 		auto poll(uint32_t timeout) -> bool;

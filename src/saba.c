@@ -1,7 +1,8 @@
 #include "server.h"
-#include "packetHandlers.h"
+
 #include "gameSession.h"
 #include "sabaSettings.h"
+#include "packetHandlers.h"
 
 //server
 
@@ -84,18 +85,24 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			bytesRead = phOnConnect(server, session, client, data);
 		} else {
 			char msgType = *(char*) data;
+			printf("debug: message type: %d\n", msgType);
 			if        (msgType == 2) {//SEND_PROGRESS
 				bytesRead = phSendProgress(server, session, client, data);
 			} else if (msgType == 3) {//COMPLETED_TEXT
 				bytesRead = phCompletedText(server, session, client, data);
 			} else if (msgType == 4) {//EXIT_TO_LOBBY
-				bytesRead = phExitToLobby(server, session, client, data);
+				// bytesRead = phExitToLobby(server, session, client, data);
+				bytesRead = phDisconnect(server, session, client, data);
 			} else if (msgType == 0) {//TOGGLE_READY
 				bytesRead = phToggleReady(server, session, client, data);
 			} else if (msgType == 1) {//CHANGE_NAME
 				bytesRead = phChangeName(server, session, client, data);
 			} else if (msgType == 5) {//SEND_MESSAGE
 				bytesRead = phSendMessage(server, session, client, data);
+			} else if (msgType == 6) {//SPECTATE
+				bytesRead = phToggleSpectate(server, session, client, data);
+			} else if (msgType == 7) {//DISCONNECT
+				bytesRead = phDisconnect(server, session, client, data);
 			}
 		}
 		if (bytesRead < 1) {
@@ -115,11 +122,12 @@ ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_i
 	session->players[client].name = 0;
 	session->players[client].progress = -1;
 	session->players[client].finishTime = -1;
+	return SSTATE_NORMAL;
 }
 
 ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: [%s] disconnected\n", session->players[client].name);
+	printf("debug: [%s] timed out after 16.66666 milliseconds\n", session->players[client].name);
 	if (session->currentState) {
 		char packet[2];
 		packet[1] = client;
@@ -135,12 +143,14 @@ ServerState disconnectCB(ServerSession* server, int client) {
 			if (!session->players[client].progress) {
 				--session->numReady;
 			}
+			free(session->players[client].name);
 			char packet_data[2];
 			packet_data[0] = 2;
 			packet_data[1] = client;
 			broadcastPacket(server, packet_data, 2);
 		}
 	}
+	return SSTATE_NORMAL;
 }
 
 int main(int argc, char** argv) {
@@ -174,11 +184,23 @@ int main(int argc, char** argv) {
 				endGame(&server, &sessionData);
 			}
 		} else {
-			if (sessionData.numReady != sessionData.numPlayers) {
-				sessionData.startTimer = -1;
-			}
-			if (sessionData.startTimer == 0) {
-				startGame(&server, &sessionData);
+			if (sessionData.numPlayers - sessionData.numSpectators > 0) {
+				if (sessionData.numReady + sessionData.numSpectators == sessionData.numPlayers) {
+					if (sessionData.startTimer == 0) {
+						startGame(&server, &sessionData);
+					} else if(sessionData.startTimer == -1) {
+						sessionData.startTimer = (int) (3.0 * 1000000.0 / 16666.0);
+						char packet_data[2];
+						packet_data[0] = 11;
+						packet_data[1] = 3;
+						broadcastPacket(&server, packet_data, sizeof(packet_data));
+					}
+				} else if (sessionData.startTimer != -1) {
+					sessionData.startTimer = -1;
+					char packet_data[1];
+					packet_data[0] = 12;
+					broadcastPacket(&server, packet_data, sizeof(packet_data));
+				}
 			}
 		}
 	}
