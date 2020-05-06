@@ -46,6 +46,8 @@ The first byte of every message indicates the type of message it is
 | [UPDATE_NAME](#UPDATE_NAME)       | 8     |
 | [RELAY_MESSAGE](#RELAY_MESSAGE)   | 9     |
 | [RELAY_SPECTATE](#RELAY_SPECTATE) | 10    |
+| [BEGIN_TIMER](#BEGIN_TIMER)       | 11    |
+| [CANCEL_TIMER](#CANCEL_TIMER)     | 12    |
 
 #### CONNECT
 
@@ -138,6 +140,29 @@ struct RelaySpectate {
 };
 ```
 
+#### BEGIN_TIMER
+
+ - [x] saba implemented
+ - [ ] kurai implemented
+ 
+```cpp
+struct BeginTimer {
+	const MessageType type = BEGIN_TIMER; // 11
+	uint8_t seconds;                      // The number of seconds until the game starts
+};
+```
+
+#### CANCEL_TIMER
+
+ - [x] saba implemented
+ - [ ] kurai implemented
+ 
+```cpp
+struct CancelTimer {
+ 	const MessageType type = CancelTimer; // 12
+};
+```
+
 ### Playing
 
 | TYPE                                  | VALUE |
@@ -173,7 +198,7 @@ struct PlayerCompleted {
 };
 ```
 
-#### PLAYER_EXIT_GAME
+#### PLAYER_EXIT_GAME - Deprecated
 
  - [x] saba implemented
  - [ ] kurai implemented
@@ -227,6 +252,7 @@ The first byte of every message indicates the type of message it is
 | [CHANGE_NAME](#CHANGE_NAME)   | 1     |
 | [SEND_MESSAGE](#SEND_MESSAGE) | 5     |
 | [SPECTATE](#SPECTATE)         | 6     |
+| [DISCONNECT](#DISCONNECT)     | 7     |
 
 #### TOGGLE_READY
 
@@ -273,6 +299,18 @@ struct SendMessage {
 ```cpp
 struct Spectate {
 	const MessageType type = SPECTATE; // 6
+};
+```
+
+#### DISCONNECT
+
+ - [x] saba implemented
+ - [ ] kurai implemented
+ 
+```cpp
+struct Disconnect {
+	const MessageType type = DISCONNECT; // 7
+	uint8_t id;                          // The id of the disconnected player
 };
 ```
 
