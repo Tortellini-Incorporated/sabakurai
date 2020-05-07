@@ -58,9 +58,9 @@ auto Split::set_second_child(Window * child) -> void {
 	if (second_child != 0) {
 		auto split_location = this->split_location(internal.x, internal.y, internal.width, internal.height);
 		if (split_direction == HORZ) {
-			second_child->window_resize(internal.x, split_location, internal.width, internal.height - split_location);
+			second_child->window_resize(internal.x, internal.y + split_location, internal.width, internal.height - split_location);
 		} else {
-			second_child->window_resize(split_location, internal.y, internal.width - split_location, internal.height);
+			second_child->window_resize(internal.x + split_location, internal.y, internal.width - split_location, internal.height);
 		}
 	}
 }
