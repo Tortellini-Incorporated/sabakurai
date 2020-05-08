@@ -631,6 +631,10 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	Playing playing{ lobby.root };
 	auto & players = playing.get_players();
 	{
+		auto text = std::string();
+		auto & self = lobby.players.get_self();
+		lobby.socket.width(Socket::U16) >> text;
+		playing.set(text, self.name, self.color);
 		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
 			auto & player = lobby.players.get_player_index(i + 1);
 			players.push_back({ player.id, player.name, player.color, player.spectate, 0 });
@@ -651,7 +655,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 			UPDATE_PROGRESS  = 0x04,
 			PLAYER_COMPLETED = 0x05,
 			DISCONNECT       = 0x02,
-			GAME_OVER        = 0x07
+			GAME_OVER        = 0x07;
 		auto read = lobby.socket.read();
 		switch (read) {
 			case UPDATE_PROGRESS: {
