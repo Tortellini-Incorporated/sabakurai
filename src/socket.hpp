@@ -77,7 +77,9 @@ class Socket {
 		auto close() -> void;
 
 		auto poll(uint32_t timeout) -> bool;
-		auto read() -> uint8_t;
+		auto read()   -> uint8_t;
+		auto read16() -> uint16_t;
+		auto read32() -> uint32_t;
 
 		auto operator<<(const char * str) -> Socket&;
 		auto operator<<(const std::string & str) -> Socket&;
