@@ -117,6 +117,22 @@ auto Socket::read() -> uint8_t {
 	return c;
 }
 
+auto Socket::read16() -> uint16_t {
+	char c[2];
+	recv(socket, c, 2, mFlags.flags);
+	return (uint16_t( c[0] ) << 8)
+	     | (uint16_t( c[1] ) << 0);
+}
+
+auto Socket::read32() -> uint32_t {
+	char c[4];
+	recv(socket, c, 4, mFlags.flags);
+	return (uint32_t( c[0] ) << 24)
+	     | (uint32_t( c[1] ) << 16)
+	     | (uint32_t( c[2] ) << 8 )
+		 | (uint32_t( c[3] ) << 0 );
+}
+
 auto Socket::operator<<(const char * str) -> Socket& {
 	--str;
 	while (*++str != '\0') {

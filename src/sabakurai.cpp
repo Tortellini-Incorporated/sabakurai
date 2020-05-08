@@ -628,7 +628,67 @@ auto connected(LobbyState & lobby) -> uint32_t {
 }
 
 auto playing(LobbyState & lobby) -> uint32_t {
-	Playing playing{ lobby.root, lobby.players };
+	Playing playing{ lobby.root };
+	auto & players = playing.get_players();
+	{
+		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
+			auto & player = lobby.players.get_player_index(i + 1);
+			players.push_back({ player.id, player.name, player.color, player.spectate, 0 });
+		}
+	}
+
+	lobby.split.set_second_child(&playing);
+	lobby.root.draw().refresh();
+
+	auto quit = PLAYING;
+	while (quit == PLAYING) {
+		if (playing.get_char() != 'q') {
+			lobby.socket
+				<< uint8_t( 0x03 )
+				<< 0; // Dummy time
+		}
+		constexpr static uint8_t
+			UPDATE_PROGRESS  = 0x04,
+			PLAYER_COMPLETED = 0x05,
+			DISCONNECT       = 0x02,
+			GAME_OVER        = 0x07
+		auto read = lobby.socket.read();
+		switch (read) {
+			case UPDATE_PROGRESS: {
+				auto id = uint32_t( lobby.socket.read() );
+				auto progress = lobby.socket.read16();
+				break;
+			}
+			case PLAYER_COMPLETED: {
+				auto id = uint32_t( lobby.socket.read() );
+				auto time = lobby.socket.read32();
+				break;
+			}
+			case DISCONNECT: {
+				auto id = uint32_t( lobby.socket.read() );
+				break;
+			}
+			case GAME_OVER: {
+				quit = CONNECTED;
+				break;
+			}
+		}
+		playing.draw().refresh();
+	}
+
+	{
+		lobby.players.clear_list();
+		for (auto & player : playing.get_players()) {
+			if (player.status != Playing::DISCONNECTED) {
+				lobby.players.add_player(player.id, player.color, false, player.status, player.name);
+			}
+		}
+	}
+
+	lobby.split.set_second_child(&lobby.split2);
+	lobby.root.draw().refresh();
+
+	return CONNECTED;
 }
 
 auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & error) -> void {
