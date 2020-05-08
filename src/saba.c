@@ -19,11 +19,7 @@ int getRandomStringMesg(char* buffer) {
 
 	printf("reading file %d\n", numToRead);
 
-	int size = fread(buffer + 3, 1, MAX_FILE_SIZE, file);
-	buffer[0] = 3;
-	buffer[1] = size >> 8;
-	buffer[2] = size & 0x00FF;
-	return size + 3;
+	return fread(buffer, 1, MAX_FILE_SIZE, file);
 }
 
 void startGame(ServerSession* server, GameData* session) {
@@ -38,6 +34,11 @@ void startGame(ServerSession* server, GameData* session) {
 	int size = getRandomStringMesg(buffer + 3);
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
+	printf("Text (%d): ", size);
+	for (int i = 0; i < 10; ++i) {
+		printf("%u ", buffer[i]);
+	}
+	printf("\n");
 	broadcastPacket(server, buffer, size);
 }
 

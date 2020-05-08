@@ -631,6 +631,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	Playing playing{ lobby.root };
 	auto & players = playing.get_players();
 	{
+		//file << "Hack: " << uint32_t( lobby.socket.read() ) << ", " << uint32_t( lobby.socket.read() ) << ", " << uint32_t( lobby.socket.read() ) << std::endl;
 		auto text = std::string();
 		auto & self = lobby.players.get_self();
 		lobby.socket.width(Socket::U16) >> text;

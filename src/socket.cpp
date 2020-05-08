@@ -213,8 +213,8 @@ auto Socket::operator>>(std::string & string) -> Socket& {
 }
 
 auto Socket::operator>>(std::vector<char> & vector) -> Socket& {
-	char buffer[4];
-	recv(socket, buffer, mWidth + 1, mFlags.flags);
+	uint8_t buffer[4];
+	recv(socket, (char*) buffer, mWidth + 1, mFlags.flags);
 	auto length = uint32_t( buffer[0] );
 	for (auto i = 1; i <= mWidth; ++i) {
 		length <<= 8;
