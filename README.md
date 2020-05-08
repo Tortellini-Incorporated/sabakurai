@@ -90,7 +90,7 @@ struct Disconnect {
 #### START
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct Start {
@@ -130,8 +130,8 @@ struct RelayMessage {
 
 #### RELAY_SPECTATE
 
- - [ ] saba implemented
- - [ ] kurai implemented
+ - [x] saba implemented
+ - [x] kurai implemented
  
 ```cpp
 struct RelaySpectate {
@@ -198,28 +198,14 @@ struct PlayerCompleted {
 };
 ```
 
-#### PLAYER_EXIT_GAME - Deprecated
-
- - [x] saba implemented
- - [ ] kurai implemented
-
-```cpp
-struct PlayerExitGame {
-	const MessageType type = PLAYER_EXIT_GAME; // 6
-	uint8_t id;                                // The id of the player who disconnected
-};
-```
-
 #### GAME_OVER
 
- - [x] saba implemented
+ - [ ] saba implemented
  - [ ] kurai implemented
 
 ```cpp
 struct GameOver {
 	const MessageType type = GAME_OVER; // 7
-	uint8_t numPlayers;                 // The number of players in the lobby
-	Player players[numPlayers];         // this array includes _all_ players, including the one recieving the message
 };
 ```
 
@@ -293,8 +279,8 @@ struct SendMessage {
 
 #### SPECTATE
 
- - [ ] saba implemented
- - [ ] kurai implemented
+ - [x] saba implemented
+ - [x] kurai implemented
  
 ```cpp
 struct Spectate {
