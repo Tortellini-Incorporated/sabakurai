@@ -28,6 +28,8 @@ int phSendMessage(ServerSession* server, GameData* session, int client, char* da
 
 int phDisconnect(ServerSession* server, GameData* session, int client, char* data);     // 7
 
+int phTextSet(ServerSession* server, GameData* session, int client, char* data);        // 8
+
 // INGAME
 
 int phSendProgress(ServerSession* server, GameData* session, int client, char* data);	// 2

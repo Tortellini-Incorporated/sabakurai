@@ -6,9 +6,12 @@
 
 //server
 
-int getRandomStringMesg(char* buffer) {
+int getRandomStringMesg(char* buffer, GameData* session) {
 	int numToRead = rand() % NUM_STRINGS;
-	numToRead = 375;
+	if (session->text) {
+		numToRead = session->text;
+		session->text = 0;
+	}
 	static char titleBuffer[32];
 	sprintf(titleBuffer, "texts/%d", numToRead);
 	
@@ -32,7 +35,7 @@ void startGame(ServerSession* server, GameData* session) {
 	session->startTimer = -1;
 	static char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
-	int size = getRandomStringMesg(buffer + 3) + 3;
+	int size = getRandomStringMesg(buffer + 3, session) + 3;
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
 	buffer[size + 3] = 0;
@@ -102,6 +105,8 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 				bytesRead = phToggleSpectate(server, session, client, data);
 			} else if (msgType == 7) {//DISCONNECT
 				bytesRead = phDisconnect(server, session, client, data);
+			} else if (msgType == 8) {//TEXT_SET
+				bytesRead = phTextSet(server, session, client, data);
 			}
 		}
 		if (bytesRead < 1) {

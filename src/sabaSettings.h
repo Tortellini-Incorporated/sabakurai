@@ -2,7 +2,7 @@
 #define SABA_SETTINGS
 
 #define MAX_CLIENTS 10
-#define NUM_STRINGS 856
+#define NUM_STRINGS 859
 #define MAX_FILE_SIZE 2048
 
 #endif
