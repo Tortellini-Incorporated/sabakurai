@@ -8,6 +8,7 @@
 
 int getRandomStringMesg(char* buffer) {
 	int numToRead = rand() % NUM_STRINGS;
+	numToRead = 375;
 	static char titleBuffer[32];
 	sprintf(titleBuffer, "texts/%d", numToRead);
 	
@@ -35,6 +36,7 @@ void startGame(ServerSession* server, GameData* session) {
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
 	buffer[size + 3] = 0;
+	printf("text (%d): %s\n", size, buffer + 3);
 	broadcastPacket(server, buffer, size);
 }
 

@@ -138,7 +138,7 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 	}
 	
 	init_pair(COLOR_INVERTED, COLOR_BLACK, COLOR_WHITE);
-	init_pair(COLOR_ERROR,    COLOR_RED,   COLOR_BLACK);
+	init_pair(COLOR_ERROR,    COLOR_BLACK, COLOR_RED  );
 
 	lobby.title_box.set_child(&lobby.title);
 	lobby.player_box.set_child(&lobby.players);
@@ -615,6 +615,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 		auto text = std::string();
 		auto & self = lobby.players.get_self();
 		lobby.socket.width(Socket::U16) >> text;
+		file << "Text: " << text << std::endl;
 		playing.set(text, self.name, self.color);
 		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
 			auto & player = lobby.players.get_player_index(i + 1);
