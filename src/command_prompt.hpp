@@ -21,6 +21,8 @@ class CommandPrompt : public Window {
 		auto cursor_position() -> Position;
 
 	public:
+		virtual auto component_resize() -> void;
+
 		CommandPrompt();
 		CommandPrompt(Window & root, bool dummy);
 		CommandPrompt(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
@@ -29,6 +31,7 @@ class CommandPrompt : public Window {
 		auto complete() -> bool;
 		auto height_change(uint32_t max) -> bool;
 		auto get() -> std::string;
+		auto get_and_clear() -> std::string;
 		auto clear_command() -> void;
 		auto move_cursor() -> void;
 		virtual auto draw() -> Window&;

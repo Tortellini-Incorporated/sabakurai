@@ -125,8 +125,8 @@ auto Socket::read16() -> uint16_t {
 }
 
 auto Socket::read32() -> uint32_t {
-	char c[4];
-	recv(socket, c, 4, mFlags.flags);
+	uint8_t c[4];
+	recv(socket, (char *) c, 4, mFlags.flags);
 	return (uint32_t( c[0] ) << 24)
 	     | (uint32_t( c[1] ) << 16)
 	     | (uint32_t( c[2] ) << 8 )
