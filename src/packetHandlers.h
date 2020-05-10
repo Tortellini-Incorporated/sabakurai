@@ -16,17 +16,17 @@ further arguments are special cases.
 
 // LOBBY
 
-int phOnConnect(ServerSession* server, GameData* session, int client, char* data);	// NO VALUE
+int phOnConnect(ServerSession* server, GameData* session, int client, char* data);	    // NO VALUE
 
-int phToggleReady(ServerSession* server, GameData* session, int client, char* data); // 0
+int phToggleReady(ServerSession* server, GameData* session, int client, char* data);    // 0
 
 int phToggleSpectate(ServerSession* server, GameData* session, int client, char* data); // 6
 
-int phChangeName(ServerSession* server, GameData* session, int client, char* data);	// 1
+int phChangeName(ServerSession* server, GameData* session, int client, char* data);	    // 1
 
 int phSendMessage(ServerSession* server, GameData* session, int client, char* data);	// 5
 
-int phDisconnect(ServerSession* server, GameData* session, int client, char* data); // 7
+int phDisconnect(ServerSession* server, GameData* session, int client, char* data);     // 7
 
 // INGAME
 

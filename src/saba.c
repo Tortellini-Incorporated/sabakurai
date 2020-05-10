@@ -31,14 +31,10 @@ void startGame(ServerSession* server, GameData* session) {
 	session->startTimer = -1;
 	static char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
-	int size = getRandomStringMesg(buffer + 3);
+	int size = getRandomStringMesg(buffer + 3) + 3;
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
-	printf("Text (%d): ", size);
-	for (int i = 0; i < 10; ++i) {
-		printf("%u ", buffer[i]);
-	}
-	printf("\n");
+	buffer[size + 3] = 0;
 	broadcastPacket(server, buffer, size);
 }
 
