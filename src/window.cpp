@@ -93,6 +93,16 @@ auto Window::get_char() -> uint32_t {
 	return internal.root->root_get_char(*this);
 }
 
+auto Window::set_color(uint32_t color) -> Window& {
+	wattron(internal.window, COLOR_PAIR(color));
+	return *this;
+}
+
+auto Window::reset_color(uint32_t color) -> Window& {
+	wattroff(internal.window, COLOR_PAIR(color));
+	return *this;
+}
+
 auto Window::clear() -> Window& {
 	for (auto i = uint32_t{ 0 }; i < internal.height; ++i) {
 		mvwhline(internal.window, i, 0, ' ', internal.width);

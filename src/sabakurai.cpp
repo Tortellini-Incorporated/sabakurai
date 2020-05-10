@@ -81,26 +81,6 @@ const static auto
 	COLOR_ERROR    = 0x02;
 
 auto main(int32_t argc, char ** argv) -> int32_t {
-	/*auto ip = std::string();
-	if (argc > 1) {
-		ip = argv[1];
-	} else {
-		std::cout << "Please enter an ip address: " << std::flush;
-		std::getline(std::cin, ip);
-	}
-
-	auto username = std::string();
-	if (argc > 2) {
-		username = argv[2];
-	} else {
-		std::cout << "Please enter a username: " << std::flush;
-		std::getline(std::cin, username);
-	}
-	while (255 < username.size() || username.size() < 1) {
-		std::cout << "Username must be between 1 and 255 characters long.\nPlease enter a username: " << std::flush;
-		std::getline(std::cin, username);
-	}*/
-
 	LobbyState lobby = {
 		{ "" },
 
@@ -299,6 +279,7 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 			}
 			lobby.split3.refresh();
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(15));
 	}
 
 	return quit;
@@ -631,7 +612,6 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	Playing playing{ lobby.root };
 	auto & players = playing.get_players();
 	{
-		//file << "Hack: " << uint32_t( lobby.socket.read() ) << ", " << uint32_t( lobby.socket.read() ) << ", " << uint32_t( lobby.socket.read() ) << std::endl;
 		auto text = std::string();
 		auto & self = lobby.players.get_self();
 		lobby.socket.width(Socket::U16) >> text;
@@ -644,40 +624,49 @@ auto playing(LobbyState & lobby) -> uint32_t {
 
 	lobby.split.set_second_child(&playing);
 	lobby.root.draw().refresh();
+	
+	playing.block(false);
 
 	auto quit = PLAYING;
 	while (quit == PLAYING) {
-		if (playing.get_char() != 'q') {
+		auto c = uint32_t( 0 );
+		if ((c = playing.get_char()) == 'q') {
 			lobby.socket
 				<< uint8_t( 0x03 )
-				<< 0; // Dummy time
+				<< 0 // Dummy time
+				<< Socket::FLUSH;
+		} else if (c != ERR) {
+			playing.feed_char(c);
 		}
 		constexpr static uint8_t
 			UPDATE_PROGRESS  = 0x04,
 			PLAYER_COMPLETED = 0x05,
 			DISCONNECT       = 0x02,
 			GAME_OVER        = 0x07;
-		auto read = lobby.socket.read();
-		switch (read) {
-			case UPDATE_PROGRESS: {
-				auto id = uint32_t( lobby.socket.read() );
-				auto progress = lobby.socket.read16();
-				break;
-			}
-			case PLAYER_COMPLETED: {
-				auto id = uint32_t( lobby.socket.read() );
-				auto time = lobby.socket.read32();
-				break;
-			}
-			case DISCONNECT: {
-				auto id = uint32_t( lobby.socket.read() );
-				break;
-			}
-			case GAME_OVER: {
-				quit = CONNECTED;
-				break;
+		if (lobby.socket.poll(0)) {
+			auto read = lobby.socket.read();
+			switch (read) {
+				case UPDATE_PROGRESS: {
+					auto id = uint32_t( lobby.socket.read() );
+					auto progress = lobby.socket.read16();
+					break;
+				}
+				case PLAYER_COMPLETED: {
+					auto id = uint32_t( lobby.socket.read() );
+					auto time = lobby.socket.read32();
+					break;
+				}
+				case DISCONNECT: {
+					auto id = uint32_t( lobby.socket.read() );
+					break;
+				}
+				case GAME_OVER: {
+					quit = CONNECTED;
+					break;
+				}
 			}
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(15));
 		playing.draw().refresh();
 	}
 

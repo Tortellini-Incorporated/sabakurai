@@ -55,6 +55,9 @@ class Window {
 		auto window() -> WINDOW*;
 
 		auto block(bool value = true) -> void;
+
+		auto set_color(uint32_t color) -> Window&;
+		auto reset_color(uint32_t color) -> Window&;
 		
 		~Window();
 };
