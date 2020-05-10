@@ -118,8 +118,8 @@ auto Socket::read() -> uint8_t {
 }
 
 auto Socket::read16() -> uint16_t {
-	char c[2];
-	recv(socket, c, 2, mFlags.flags);
+	uint8_t c[2];
+	recv(socket, (char *) c, 2, mFlags.flags);
 	return (uint16_t( c[0] ) << 8)
 	     | (uint16_t( c[1] ) << 0);
 }
@@ -192,16 +192,23 @@ auto Socket::operator<<(uint32_t data) -> Socket& {
 }
 
 auto Socket::operator<<(Flush flush) -> Socket& {
-	if (flush == FLUSH_LINE) {
-		message.push_back('\n');
+	if (!is_empty()) {
+		if (flush == FLUSH_LINE) {
+			message.push_back('\n');
+		}
+		send(socket, &message[0], message.size(), mFlags.flags);
+		message.clear();
 	}
-	for (auto i : message) {
-		file << uint32_t( i ) << " ";
-	}
-	file << std::endl;
-	send(socket, &message[0], message.size(), mFlags.flags);
+	return *this;
+}
+
+auto Socket::clear() -> Socket& {
 	message.clear();
 	return *this;
+}
+
+auto Socket::is_empty() -> bool {
+	return message.empty();
 }
 
 auto Socket::operator>>(std::string & string) -> Socket& {

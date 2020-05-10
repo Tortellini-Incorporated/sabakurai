@@ -92,6 +92,9 @@ class Socket {
 		auto operator<<(uint32_t data) -> Socket&;
 		auto operator<<(Flush flush)   -> Socket&;
 
+		auto clear() -> Socket&;	
+		auto is_empty() -> bool;
+
 		auto operator>>(std::string & string) -> Socket&;
 		auto operator>>(std::vector<char> & vector) -> Socket&;
 		auto operator>>(char & c) -> Socket&;

@@ -91,9 +91,9 @@ int phChangeName(ServerSession* server, GameData* session, int client, char* dat
 }
 
 int phSendMessage(ServerSession* server, GameData* session, int client, char* data) {	// 5
-	int msgLen = data[1] << 8;
+	int msgLen  = data[1] << 8;
+	    msgLen += data[2];
 	printf("debug: relaying message, length [%d]\n", msgLen);
-	msgLen += data[2];
 	char* scratch = malloc(sizeof(char) * (msgLen + 5));
 	scratch[0] = 9;
 	scratch[1] = client;
@@ -122,6 +122,23 @@ int phDisconnect(ServerSession* server, GameData* session, int client, char* dat
 		close(server->clients[client]);
 		server->clients[client] = 0;
 	}
+	return 1;
+}
+
+int phTextSet(ServerSession* server, GameData* session, int client, char* data) { // 8
+	unsigned char * udata = data;
+	data[0] = 13;
+	int data_count = 0;
+	if (data[1] == 0) {
+		data_count = 3;
+	} else if (data[1] == 1) {
+		session->text = udata[2] << 8 | udata[3];
+		data_count = 4;
+	}
+	if (data_count) {
+		broadcastPacket(server, data, data_count);
+	}
+	data[0] = 8;
 	return 1;
 }
 

@@ -2,6 +2,7 @@
 #include <ncurses.h>
 #include <chrono>
 #include <thread>
+#include <string>
 #include <iostream>
 #include <fstream>
 
@@ -257,6 +258,8 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 		Command{
 			"killme",
 			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.log.message("Opens fridge...");
+				lobby.log.message(lobby.players.get_self().name, "Kill me");
 				lobby.log.message("Medic", "Later");
 				lobby.log.draw().refresh();
 			}
@@ -474,8 +477,31 @@ auto connected(LobbyState & lobby) -> uint32_t {
 		Command{
 			"killme",
 			[&lobby](const std::vector<std::string> & args) -> void {
-				lobby.log.message("Medic", "Later");
-				lobby.log.draw().refresh();
+				lobby.socket
+					<< uint8_t( 0x08 )
+					<< uint8_t( 0x00 )
+					<< uint8_t( lobby.players.get_self().id )
+					<< Socket::FLUSH;
+			}
+		},
+		Command{
+			"special",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				lobby.socket
+					<< uint8_t( 0x08 )
+					<< uint8_t( 0x01 );
+				if (args[0] == "66") {
+					lobby.socket << uint16_t( 66 );
+				} else if (args[0] == "473") {
+					lobby.socket << uint16_t( 473 );
+				} else if (args[0] == "568") {
+					lobby.socket << uint16_t( 568 );
+				} else {
+					lobby.socket.clear();
+					lobby.log.message(std::string("Unrecognized special text '").append(args[0]).append("'"));
+					lobby.log.draw().refresh();
+				}
+				lobby.socket << Socket::FLUSH;
 			}
 		}
 	};
@@ -506,7 +532,8 @@ auto connected(LobbyState & lobby) -> uint32_t {
 				RELAY_MESSAGE  = 0x09,
 				RELAY_SPECTATE = 0x0A,
 				BEGIN_TIMER    = 0x0B,
-				CANCEL_TIMER   = 0x0C;
+				CANCEL_TIMER   = 0x0C,
+				TEXT_SET       = 0x0D;
 			if (lobby.socket.poll(0)) {
 				auto read = lobby.socket.read();
 				switch (read) {
@@ -594,6 +621,40 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					case CANCEL_TIMER: {
 						lobby.log.message("Game start has been cancelled");
 						lobby.log.draw().refresh();
+						break;
+					}
+					case TEXT_SET: {
+						read = lobby.socket.read();
+						switch (read) {
+							case 0: {
+								auto player = lobby.players.get_player(lobby.socket.read());
+								lobby.log.message("Opens fridge...");
+								lobby.log.message(player.name, "Kill me");
+								lobby.log.message("Medic", "Later");
+								lobby.log.draw().refresh();
+								break;
+							}
+							case 1: {
+								auto selection = lobby.socket.read16();
+								file << "Selection: " << selection << std::endl;
+								switch (selection) {
+									case 66: {
+										lobby.log.message("A plague is a approaching...");
+										break;
+									}
+									case 473: {
+										lobby.log.message("A deceased arm looms overhead...");
+										break;
+									}
+									case 568: {
+										lobby.log.message("Carrot 2 bios update pending...");
+										break;
+									}
+								}
+								lobby.log.draw().refresh();
+								break;
+							}
+						}
 						break;
 					}
 					default: {
