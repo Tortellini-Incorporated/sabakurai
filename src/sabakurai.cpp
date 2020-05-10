@@ -66,6 +66,7 @@ struct LobbyState {
 };
 
 auto disconnected(LobbyState & lobby) -> uint32_t;
+auto connect(LobbyState & lobby)      -> void;
 auto connected(LobbyState & lobby)    -> uint32_t;
 auto playing(LobbyState & lobby)      -> uint32_t;
 
@@ -74,7 +75,8 @@ const static auto
 	CONNECTED    = 0x01,
 	RECONNECT    = 0x02,
 	QUIT         = 0x03,
-	PLAYING      = 0x04;
+	PLAYING      = 0x04,
+	LOBBY        = 0x05;
 
 const static auto
 	COLOR_DEFAULT  = 0x00,
@@ -152,7 +154,6 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 
 	lobby.log.message("Welcome to sabakurai! For assistance please enter /help");
 
-	lobby.command.block(false);
 	lobby.root.draw().refresh();
 
 	auto state = DISCONNECTED;
@@ -160,7 +161,8 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 		switch (state) {
 			case DISCONNECTED: state = disconnected(lobby); break;
 			case CONNECTED:
-			case RECONNECT:    state = connected(lobby);    break;
+			case RECONNECT:    connect(lobby);
+			case LOBBY:        state = connected(lobby);    break;
 			case PLAYING:      state = playing(lobby);      break;
 		}
 	}
@@ -288,26 +290,27 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 	return quit;
 }
 
+auto connect(LobbyState & lobby) -> void {
+	auto my_id = lobby.socket.read();
+	auto player_count = lobby.socket.read();
+	file << player_count << std::endl;
+	for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
+		auto id    = uint32_t( lobby.socket.read() );
+		auto ready = bool( lobby.socket.read() );
+		auto spec  = bool( lobby.socket.read() );
+		auto name  = std::string();
+		lobby.socket.width(Socket::U8) >> name;
+		if (id == my_id) {
+			lobby.players.get_self().id = my_id;
+		} else {
+			lobby.players.add_player(id, 0, ready, spec, name);
+		}
+	}
+	lobby.players.draw().refresh();
+}
+
 auto connected(LobbyState & lobby) -> uint32_t {
 	file << "Connected" << std::endl;
-	{
-		auto my_id = lobby.socket.read();
-		auto player_count = lobby.socket.read();
-		file << player_count << std::endl;
-		for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
-			auto id    = uint32_t( lobby.socket.read() );
-			auto ready = bool( lobby.socket.read() );
-			auto spec  = bool( lobby.socket.read() );
-			auto name  = std::string();
-			lobby.socket.width(Socket::U8) >> name;
-			if (id == my_id) {
-				lobby.players.get_self().id = my_id;
-			} else {
-				lobby.players.add_player(id, 0, ready, spec, name);
-			}
-		}
-		lobby.players.draw().refresh();
-	}
 		
 	auto quit = CONNECTED;
 
@@ -506,11 +509,12 @@ auto connected(LobbyState & lobby) -> uint32_t {
 		}
 	};
 
+	lobby.root.draw().refresh();
+
 	while (quit == CONNECTED) {
 		if (lobby.command.update()) {
 			if (lobby.command.complete()) {
-				dispatch_command(lobby.command.get(), commands, lobby.log);
-				lobby.command.clear_command();
+				dispatch_command(lobby.command.get_and_clear(), commands, lobby.log);
 			}
 			if (lobby.command.height_change(lobby.command.height() + 1)) {
 				lobby.split3.component_resize();
@@ -571,7 +575,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						break;
 					}
 					case START: {
-						// TODO: Start the game
 						file << "Game is starting..." << std::endl;
 						quit = PLAYING;
 						break;
@@ -581,12 +584,12 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						auto & player = lobby.players.get_player(id);
 						auto new_name = std::string();
 						lobby.socket.width(Socket::U8) >> new_name;
-						//if (id != lobby.players.get_self().id) {
+						if (id != lobby.players.get_self().id) {
 							file << "New Name: " << new_name << std::endl;
 							lobby.log.message(std::string("Player '").append(player.name).append("' has changed their name to '").append(player.name = new_name).append("'"));
 							lobby.log.draw().refresh();
 							lobby.players.draw().refresh();
-						//}
+						}
 						break;
 					}
 					case RELAY_MESSAGE: {
@@ -687,18 +690,31 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	lobby.split.set_second_child(&playing);
 	lobby.root.draw().refresh();
 	
-	playing.block(false);
+	auto complete = false;
+	auto last_progress = uint32_t( 0 );
+
+	auto victor = -1;
 
 	auto quit = PLAYING;
 	while (quit == PLAYING) {
 		auto c = uint32_t( 0 );
-		if ((c = playing.get_char()) == 'q') {
-			lobby.socket
-				<< uint8_t( 0x03 )
-				<< 0 // Dummy time
-				<< Socket::FLUSH;
-		} else if (c != ERR) {
+		if ((c = playing.get_char()) != ERR) {
 			playing.feed_char(c);
+			if (!complete) {
+				if (playing.completed()) {
+					lobby.socket
+						<< uint8_t( 0x03 )
+						<< playing.get_time()
+						<< Socket::FLUSH;
+					complete = true;
+				} else if ((c = playing.get_progress()) != last_progress) {
+					lobby.socket
+						<<  uint8_t( 0x02 )
+						<< uint16_t( c    )
+						<< Socket::FLUSH;
+					last_progress = c;
+				}
+			}
 		}
 		constexpr static uint8_t
 			UPDATE_PROGRESS  = 0x04,
@@ -711,11 +727,17 @@ auto playing(LobbyState & lobby) -> uint32_t {
 				case UPDATE_PROGRESS: {
 					auto id = uint32_t( lobby.socket.read() );
 					auto progress = lobby.socket.read16();
+					if (id != lobby.players.get_self().id) {
+
+					}
 					break;
 				}
 				case PLAYER_COMPLETED: {
 					auto id = uint32_t( lobby.socket.read() );
 					auto time = lobby.socket.read32();
+					if (victor == -1) {
+						victor = id;
+					}
 					break;
 				}
 				case DISCONNECT: {
@@ -723,8 +745,16 @@ auto playing(LobbyState & lobby) -> uint32_t {
 					break;
 				}
 				case GAME_OVER: {
-					quit = CONNECTED;
+					quit = LOBBY;
+					if (victor != -1) {
+						lobby.log.message(std::string("Player '").append(playing.get_player(victor).name).append("' won the game!"));
+					} else {
+						lobby.log.message("You have all failed");
+					}
 					break;
+				}
+				default: {
+					file << "Wakarimasen 2 deshita: " << read << std::endl;
 				}
 			}
 		}
@@ -744,7 +774,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	lobby.split.set_second_child(&lobby.split2);
 	lobby.root.draw().refresh();
 
-	return CONNECTED;
+	return quit;
 }
 
 auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & error) -> void {

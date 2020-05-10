@@ -23,7 +23,12 @@ int getRandomStringMesg(char* buffer, GameData* session) {
 
 	printf("reading file %d\n", numToRead);
 
-	return fread(buffer, 1, MAX_FILE_SIZE, file);
+	// int bytes = fread(buffer, 1, MAX_FILE_SIZE, file);
+	// fclose(file);
+	// return bytes;
+
+	memcpy(buffer, "Hello World!", 12);
+	return 12;
 }
 
 void startGame(ServerSession* server, GameData* session) {
@@ -44,39 +49,18 @@ void startGame(ServerSession* server, GameData* session) {
 }
 
 void endGame(ServerSession* server, GameData* session) {
-	char* packet;
-	int totalMsgLen = 2;
-
-	session->numPlayers = 0;
 	session->currentState = 0;
 	session->startTimer = -1;
+	session->numReady = 0;
+	session->numCompleted = 0;
 	
 	for (int i = 0; i < server->maxClients; ++i) {
 		session->players[i].progress = -1;
 		session->players[i].finishTime = -1;
-		if (server->clients[i] && session->players[i].name) {
-			++session->numPlayers;
-			totalMsgLen += 3 + strlen(session->players[i].name);
-		}
 	}
-	packet = malloc(totalMsgLen);
+	char packet[1];
 	packet[0] = 7;
-	packet[1] = session->numPlayers;
-	
-	int index = 2;
-	
-	for (int i = 0; i < server->maxClients; ++i) {
-		if (server->clients[i] && session->players[i].name) {
-			int nameLen = strlen(session->players[i].name);
-			packet[index++] = i;
-			packet[index++] = 0;//nobody should be ready
-			packet[index++] = nameLen;
-			memcpy(packet + index, session->players[i].name, nameLen);
-			index += nameLen;
-		}
-	}
-	broadcastPacket(server, packet, totalMsgLen);
-	free(packet);
+	broadcastPacket(server, packet, 1);
 }
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
@@ -184,7 +168,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (sessionData.currentState) {
-			if (sessionData.startTimer == 0) {
+			if (sessionData.startTimer == 0 || sessionData.numCompleted == sessionData.numPlayers) {
 				endGame(&server, &sessionData);
 			}
 		} else {

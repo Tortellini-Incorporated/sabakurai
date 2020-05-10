@@ -171,6 +171,7 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	if (session->startTimer < 0) {
 		session->startTimer = 3600;//60 seconds
 	}
+	++session->numCompleted;
 	return 5;
 }
 
