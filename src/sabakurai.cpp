@@ -65,10 +65,10 @@ struct LobbyState {
 	uint32_t curr_addr;
 };
 
-auto disconnected(LobbyState & lobby) -> uint32_t;
-auto connect(LobbyState & lobby)      -> void;
-auto connected(LobbyState & lobby)    -> uint32_t;
-auto playing(LobbyState & lobby)      -> uint32_t;
+auto disconnected(LobbyState & lobby)                  -> uint32_t;
+auto connect(LobbyState & lobby)                       -> void;
+auto connected(LobbyState & lobby)                     -> uint32_t;
+auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t;
 
 const static auto
 	DISCONNECTED = 0x00,
@@ -76,7 +76,8 @@ const static auto
 	RECONNECT    = 0x02,
 	QUIT         = 0x03,
 	PLAYING      = 0x04,
-	LOBBY        = 0x05;
+	LOBBY        = 0x05,
+	MID_PLAYING  = 0x06;
 
 const static auto
 	COLOR_DEFAULT  = 0x00,
@@ -159,11 +160,12 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 	auto state = DISCONNECTED;
 	while (state != QUIT) {
 		switch (state) {
-			case DISCONNECTED: state = disconnected(lobby); break;
+			case DISCONNECTED: state = disconnected(lobby);   break;
 			case CONNECTED:
 			case RECONNECT:    connect(lobby);
-			case LOBBY:        state = connected(lobby);    break;
-			case PLAYING:      state = playing(lobby);      break;
+			case LOBBY:        state = connected(lobby);      break;
+			case PLAYING:      state = playing(lobby, false); break;
+			case MID_PLAYING:  state = playing(lobby, true);  break;
 		}
 	}
 
@@ -171,6 +173,8 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 }
 
 auto disconnected(LobbyState & lobby) -> uint32_t {
+	auto spectator = lobby.players.get_self().spectate;
+
 	auto quit = DISCONNECTED;
 
 	////// COMMANDS //////
@@ -208,8 +212,12 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 						<< Socket::FLUSH;
 
 					lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
-
-					quit = CONNECTED;
+					auto state = lobby.socket.read();
+					if (state == 0) {
+						quit = CONNECTED;
+					} else {
+						quit = MID_PLAYING;
+					}
 				} else {
 					lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 					lobby.curr_addr = 0;
@@ -287,6 +295,8 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 		std::this_thread::sleep_for(std::chrono::milliseconds(15));
 	}
 
+	lobby.players.get_self().spectate = spectator;
+
 	return quit;
 }
 
@@ -296,10 +306,10 @@ auto connect(LobbyState & lobby) -> void {
 	file << player_count << std::endl;
 	for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
 		auto id    = uint32_t( lobby.socket.read() );
-		auto ready = bool( lobby.socket.read() );
 		auto spec  = bool( lobby.socket.read() );
 		auto name  = std::string();
 		lobby.socket.width(Socket::U8) >> name;
+		auto ready = bool( lobby.socket.read() );
 		if (id == my_id) {
 			lobby.players.get_self().id = my_id;
 		} else {
@@ -383,7 +393,12 @@ auto connected(LobbyState & lobby) -> uint32_t {
 
 						lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
 
-						quit = RECONNECT;
+						auto state = lobby.socket.read();
+						if (state == 0) {
+							quit = RECONNECT;
+						} else {
+							quit = MID_PLAYING;
+						}
 					} else {
 						lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 						lobby.curr_addr = 0;
@@ -584,12 +599,10 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						auto & player = lobby.players.get_player(id);
 						auto new_name = std::string();
 						lobby.socket.width(Socket::U8) >> new_name;
-						if (id != lobby.players.get_self().id) {
-							file << "New Name: " << new_name << std::endl;
-							lobby.log.message(std::string("Player '").append(player.name).append("' has changed their name to '").append(player.name = new_name).append("'"));
-							lobby.log.draw().refresh();
-							lobby.players.draw().refresh();
-						}
+						file << "New Name: " << new_name << std::endl;
+						lobby.log.message(std::string("Player '").append(player.name).append("' has changed their name to '").append(player.name = new_name).append("'"));
+						lobby.log.draw().refresh();
+						lobby.players.draw().refresh();
 						break;
 					}
 					case RELAY_MESSAGE: {
@@ -672,14 +685,42 @@ auto connected(LobbyState & lobby) -> uint32_t {
 	return quit;
 }
 
-auto playing(LobbyState & lobby) -> uint32_t {
+auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 	Playing playing{ lobby.root };
+	auto victor      = -1;
+	auto victor_time = -1;
+
 	auto & players = playing.get_players();
-	{
+	if (newly_connected) {
+		auto my_id  = lobby.socket.read();
+		victor      = lobby.socket.read();
+		victor_time = lobby.socket.read32();
 		auto text = std::string();
+		lobby.socket.width(Socket::U16) >> text;
 		auto & self = lobby.players.get_self();
+		self.id = my_id;
+		playing.set(text, my_id, self.name, self.color, true);
+		auto player_count = lobby.socket.read();
+		for (auto i = uint32_t( 0 ); i < player_count; ++i) {
+			auto id = lobby.socket.read();
+			auto spectator = lobby.socket.read();
+			auto name = std::string();
+			lobby.socket.width(Socket::U8) >> name;
+			auto progress = uint32_t(lobby.socket.read16());
+			auto finish_time = lobby.socket.read32();
+			if (id != my_id) {
+				players.push_back({ id, name, 0, spectator, 
+					progress == text.size() ?
+						finish_time :
+						progress
+				});
+			}
+		}
+	} else {
+		auto text = std::string();
 		lobby.socket.width(Socket::U16) >> text;
 		file << "Text: " << text << std::endl;
+		auto & self = lobby.players.get_self();
 		playing.set(text, self.id, self.name, self.color, self.spectate);
 		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
 			auto & player = lobby.players.get_player_index(i + 1);
@@ -692,8 +733,6 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	
 	auto complete = false;
 	auto last_progress = uint32_t( 0 );
-
-	auto victor = -1;
 
 	auto quit = PLAYING;
 	while (quit == PLAYING) {
@@ -717,6 +756,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 			}
 		}
 		constexpr static uint8_t
+			CONNECT          = 0x00,
 			UPDATE_PROGRESS  = 0x04,
 			PLAYER_COMPLETED = 0x05,
 			DISCONNECT       = 0x02,
@@ -724,6 +764,18 @@ auto playing(LobbyState & lobby) -> uint32_t {
 		if (lobby.socket.poll(0)) {
 			auto read = lobby.socket.read();
 			switch (read) {
+				case CONNECT: {
+					auto id   = uint32_t( lobby.socket.read() );
+					auto name = std::string();
+					lobby.socket.width(Socket::U8) >> name;
+					if (id != lobby.players.get_self().id) {
+						lobby.log.message(std::string("Player '").append(name).append("' connected"));
+						playing.get_players().push_back({ id, name, 0, true, 0 });
+						lobby.players.draw().refresh();
+						lobby.log.draw().refresh();
+					}
+					break;
+				}
 				case UPDATE_PROGRESS: {
 					auto id = uint32_t( lobby.socket.read() );
 					auto progress = lobby.socket.read16();
@@ -736,8 +788,9 @@ auto playing(LobbyState & lobby) -> uint32_t {
 				case PLAYER_COMPLETED: {
 					auto id = uint32_t( lobby.socket.read() );
 					auto time = lobby.socket.read32();
-					if (victor == -1) {
+					if (victor == -1 || time < victor_time) {
 						victor = id;
+						victor_time = time;
 					}
 					auto & player = playing.get_player(id);
 					player.status   = Playing::COMPLETED;
@@ -749,7 +802,8 @@ auto playing(LobbyState & lobby) -> uint32_t {
 					auto & player = playing.get_player(id);
 					player.status = Playing::DISCONNECTED;
 					if (id == victor) {
-						victor = -1;
+						victor      = -1;
+						victor_time = -1;
 					}
 					lobby.log.message(std::string("Player '").append(playing.get_player(id).name).append("' disconnected"));
 					break;
@@ -782,6 +836,13 @@ auto playing(LobbyState & lobby) -> uint32_t {
 	}
 
 	{
+		auto & self         = lobby.players.get_self();
+		auto & playing_self = playing.get_self();
+		self.id       = playing_self.id;
+		self.color    = playing_self.color;
+		self.ready    = false;
+		self.spectate = playing_self.status == Playing::SPECTATOR;
+		self.name     = playing_self.name;
 		lobby.players.clear_list();
 		for (auto & player : playing.get_players()) {
 			if (player.status != Playing::DISCONNECTED) {
