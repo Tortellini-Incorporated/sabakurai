@@ -6,11 +6,10 @@
 
 //server
 
-int getRandomStringMesg(char* buffer, GameData* session) {
+int getRandomStringMesg(GameData* session) {
 	int numToRead = rand() % NUM_STRINGS;
-	if (session->text) {
-		numToRead = session->text;
-		session->text = 0;
+	if (session->text_size) {
+		numToRead = session->text_size;
 	}
 	static char titleBuffer[32];
 	sprintf(titleBuffer, "texts/%d", numToRead);
@@ -23,12 +22,9 @@ int getRandomStringMesg(char* buffer, GameData* session) {
 
 	printf("reading file %d\n", numToRead);
 
-	// int bytes = fread(buffer, 1, MAX_FILE_SIZE, file);
-	// fclose(file);
-	// return bytes;
-
-	memcpy(buffer, "Hello World!", 12);
-	return 12;
+	int bytes = fread(session->text, 1, MAX_FILE_SIZE, file);
+	fclose(file);
+	return session->text_size = bytes;
 }
 
 void startGame(ServerSession* server, GameData* session) {
@@ -38,14 +34,15 @@ void startGame(ServerSession* server, GameData* session) {
 		session->players[i].finishTime = -1;
 	}
 	session->startTimer = -1;
-	static char buffer[MAX_FILE_SIZE];
+	int size = getRandomStringMesg(session);
+	char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
-	int size = getRandomStringMesg(buffer + 3, session) + 3;
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
+	memcpy(buffer + 3, session->text, size);
 	buffer[size + 3] = 0;
 	printf("text (%d): %s\n", size, buffer + 3);
-	broadcastPacket(server, buffer, size);
+	broadcastPacket(server, buffer, size + 3);
 }
 
 void endGame(ServerSession* server, GameData* session) {
@@ -53,6 +50,7 @@ void endGame(ServerSession* server, GameData* session) {
 	session->startTimer = -1;
 	session->numReady = 0;
 	session->numCompleted = 0;
+	session->text_size = 0;
 	
 	for (int i = 0; i < server->maxClients; ++i) {
 		session->players[i].progress = -1;
@@ -170,7 +168,7 @@ int main(int argc, char** argv) {
 				if (sessionData.numReady + sessionData.numSpectators == sessionData.numPlayers) {
 					if (sessionData.startTimer == 0) {
 						startGame(&server, &sessionData);
-					} else if(sessionData.startTimer == -1) {
+					} else if (sessionData.startTimer == -1) {
 						sessionData.startTimer = (int) (3.0 * 1000000.0 / 16666.0);
 						char packet_data[2];
 						packet_data[0] = 11;

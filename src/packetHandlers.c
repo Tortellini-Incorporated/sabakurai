@@ -7,28 +7,57 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 	memcpy(session->players[client].name, data + 1, nameLength * sizeof(char));
 	session->players[client].name[nameLength] = 0;
 	printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
+	if (session->currentState) {
+		session->players[client].spectator = 1;
+		++session->numSpectators;
+	}
 
 	char* msgData;
 
-	int total_message_len = 2;
+	int total_message_len = 3 + (7 + session->text_size) * session->currentState;
 	for (int i = 0; i < server->maxClients; ++i) {
 		if ((server->clients[i] || i == client) && session->players[i].name) {
-			total_message_len += 4 + strlen(session->players[i].name);
+			total_message_len += 4 + 5 * session->currentState + strlen(session->players[i].name);
 		}
 	}
 	msgData = malloc(total_message_len * sizeof(char));
-	msgData[0] = client;
-	msgData[1] = session->numPlayers + 1;
-	int index = 2;
+	msgData[0] = session->currentState;
+	msgData[1] = client;
+	if (session->currentState) {
+		msgData[2] = session->winner;
+		msgData[3] = (session->winnerTime >> 24) & 0xFF;
+		msgData[4] = (session->winnerTime >> 16) & 0xFF;
+		msgData[5] = (session->winnerTime >>  8) & 0xFF;
+		msgData[6] = (session->winnerTime >>  0) & 0xFF;
+		msgData[7] = (session->text_size  >>  8) & 0xFF;
+		msgData[8] = (session->text_size  >>  0) & 0xFF;
+		memcpy(msgData + 9, session->text, session->text_size);
+		msgData[9 + session->text_size] = session->numPlayers + 1;
+	} else {
+		msgData[2] = session->numPlayers + 1;
+	}
+	int index = 3 + (7 + session->text_size)  * session->currentState;
+	printf("debug: num players (%d)\n", session->numPlayers + 1);
 	for (int i = 0; i < server->maxClients; ++i) {
 		if ((server->clients[i] || i == client) && session->players[i].name) {
+			printf("debug: aoeu\n");
 			size_t name_len = strlen(session->players[i].name) * sizeof(char);
 			msgData[index++] = i;
-			msgData[index++] = session->players[i].progress + 1;
 			msgData[index++] = session->players[i].spectator;
 			msgData[index++] = name_len;
 			memcpy(msgData + index, session->players[i].name, name_len);
 			index += name_len;
+			if (session->currentState) {
+				printf("debug: p and ft (%d, %d)\n", session->players[i].progress, session->players[i].finishTime);
+				msgData[index++] = (session->players[i].progress   >>  8) & 0xFF;
+				msgData[index++] = (session->players[i].progress   >>  0) & 0xFF;
+				msgData[index++] = (session->players[i].finishTime >> 24) & 0xFF;
+				msgData[index++] = (session->players[i].finishTime >> 16) & 0xFF;
+				msgData[index++] = (session->players[i].finishTime >>  8) & 0xFF;
+				msgData[index++] = (session->players[i].finishTime >>  0) & 0xFF;
+			} else {
+				msgData[index++] = session->players[i].progress + 1;
+			}
 		}
 	}
 	sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
@@ -114,7 +143,8 @@ int phDisconnect(ServerSession* server, GameData* session, int client, char* dat
 		if (!session->currentState && !session->players[client].progress) {
 			--session->numReady;
 		} else if (session->currentState && session->winner == client) {
-			session->winner = -1;
+			session->winner     = -1;
+			session->winnerTime = -1;
 		}
 		if (session->players[client].spectator) {
 			--session->numSpectators;
@@ -137,7 +167,7 @@ int phTextSet(ServerSession* server, GameData* session, int client, char* data) 
 	if (data[1] == 0) {
 		data_count = 3;
 	} else if (data[1] == 1) {
-		session->text = udata[2] << 8 | udata[3];
+		session->text_size = udata[2] << 8 | udata[3];
 		data_count = 4;
 	}
 	if (data_count) {
@@ -161,10 +191,12 @@ int phSendProgress(ServerSession* server, GameData* session, int client, char* d
 }
 
 int phCompletedText(ServerSession* server, GameData* session, int client, char* data) {	// 3
-	session->players[client].finishTime =	data[1] << 24 +
-											data[2] << 16 +
-											data[3] << 8 +
-											data[4];
+	int time = data[1] << 24 +
+	           data[2] << 16 +
+	           data[3] <<  8 +
+	           data[4];
+	session->players[client].finishTime = time;
+
 	char packet[6];
 	packet[0] = 5;
 	packet[1] = client;
@@ -174,8 +206,11 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	packet[5] = data[4];
 	broadcastPacket(server, packet, 6);
 	if (session->startTimer < 0) {
-		session->winner = client;
 		session->startTimer = 3600;//60 seconds
+	}
+	if (session->winner == -1 || time < session->winnerTime) {
+		session->winner     = client;
+		session->winnerTime = time;
 	}
 	++session->numCompleted;
 	return 5;

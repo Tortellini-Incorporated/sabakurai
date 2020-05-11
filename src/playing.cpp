@@ -161,7 +161,7 @@ auto Playing::draw() -> Window& {
 				if (percent < 10) {
 					line.append(1, ' ');
 				}
-				line.append(std::to_string(uint32_t(percent)))
+				line.append(std::to_string(uint32_t(percent * 100.0f)))
 				    .append("% ]");
 				lines.push(line);
 

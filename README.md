@@ -19,10 +19,12 @@ These are the messages sent to the client by the server
 struct OnConnect {
 	uint8_t in_progress;           // Whether or not a game is in progress on the server
 	uint8_t client_id;             // The id assigned to the client that just connected
-	
-	// ONLY PRESENT IF CURRENTLY IN GAME
+	// ONLY PRESENT IF CURRENTLY IN GAME //
 	uint8_t winner;                // The id of the player that has won (if any -1 indicates no winner yet)
-	
+	uint32_t winner_time;          // The finish time of the current winner
+	uint16_t message_length;       // The length of the message to be typed
+	char message[message_length];  // The message to be typed
+	///////////////////////////////////////
 	uint8_t player_count;          // The number of players already connected to the server
 	Player  players[player_count]; // The list of information for already connected players including the player who just connected
 };//server should tell the client if there is a game currently going on desho
@@ -45,6 +47,7 @@ struct Player {
 	uint8_t  name_length;       // The length of the player's name in bytes
 	uint8_t  name[name_length]; // The name of the player
 	uint16_t progress;          // The progress of the player
+	uint32_t finish_time;       // The time in which the player finished in microseconds (or undefined if incomplete)
 };
 
 ```
@@ -111,8 +114,8 @@ struct Disconnect {
 ```cpp
 struct Start {
 	const MessageType type = START; // 3
-	uint16_t message_length;        // The length of the message to by typed
-	char message[message_length];   // The message to by typed
+	uint16_t message_length;        // The length of the message to be typed
+	char message[message_length];   // The message to be typed
 };
 ```
 

@@ -18,8 +18,10 @@ typedef struct GameData {
 	int numCompleted;
 	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
 	int startTimer;
-	int text;
+	int text_size;
+	char text[MAX_FILE_SIZE];
 	int winner;
+	unsigned int winnerTime;
 } GameData;
 
 #endif
