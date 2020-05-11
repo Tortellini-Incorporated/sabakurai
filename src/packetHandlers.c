@@ -24,7 +24,7 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 		if ((server->clients[i] || i == client) && session->players[i].name) {
 			size_t name_len = strlen(session->players[i].name) * sizeof(char);
 			msgData[index++] = i;
-			msgData[index++] = session->players[i].progress  + 1;
+			msgData[index++] = session->players[i].progress + 1;
 			msgData[index++] = session->players[i].spectator;
 			msgData[index++] = name_len;
 			memcpy(msgData + index, session->players[i].name, name_len);
@@ -111,8 +111,13 @@ int phDisconnect(ServerSession* server, GameData* session, int client, char* dat
 	printf("debug: [%s] disconnected\n", session->players[client].name);
 	if (session->players[client].name) {
 		--session->numPlayers;
-		if (!session->players[client].progress) {
+		if (!session->currentState && !session->players[client].progress) {
 			--session->numReady;
+		} else if (session->currentState && session->winner == client) {
+			session->winner = -1;
+		}
+		if (session->players[client].spectator) {
+			--session->numSpectators;
 		}
 		free(session->players[client].name);
 		char packet_data[2];
@@ -169,6 +174,7 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	packet[5] = data[4];
 	broadcastPacket(server, packet, 6);
 	if (session->startTimer < 0) {
+		session->winner = client;
 		session->startTimer = 3600;//60 seconds
 	}
 	++session->numCompleted;

@@ -19,6 +19,7 @@ typedef struct GameData {
 	int currentState;// 0 = waiting for Players to be ready, 1 = ingame
 	int startTimer;
 	int text;
+	int winner;
 } GameData;
 
 #endif

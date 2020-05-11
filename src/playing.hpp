@@ -11,7 +11,8 @@ class Playing : public Window {
 		constexpr static uint32_t
 			PARTAKER     = 0x00,
 			SPECTATOR    = 0x01,
-			DISCONNECTED = 0x02;
+			DISCONNECTED = 0x02,
+			COMPLETED    = 0x03;
 
 		struct Player {
 			uint32_t id;
@@ -40,14 +41,16 @@ class Playing : public Window {
 		Playing();
 		Playing(Window & root);
 		Playing(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
-		auto set(const std::string & text, const std::string & name, uint32_t color) -> void;
+		auto set(const std::string & text, uint32_t id, const std::string & name, uint32_t color, bool spectate) -> void;
 		auto get_player(uint32_t id) -> Player&;
-		auto get_self(uint32_t id) -> Self&;
+		auto get_self() -> Self&;
 		auto get_players() -> std::vector<Player>&;
 		auto feed_char(uint32_t c) -> void;
 		auto get_progress() -> uint32_t;
 		auto completed() -> bool;
 		auto get_time() -> uint32_t;
+		auto get_cpm() -> uint32_t;
+		auto get_wpm() -> uint32_t;
 		virtual auto draw() -> Window&;
 		~Playing();
 };
