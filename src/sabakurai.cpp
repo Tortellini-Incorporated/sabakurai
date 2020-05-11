@@ -630,7 +630,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						read = lobby.socket.read();
 						switch (read) {
 							case 0: {
-								auto player = lobby.players.get_player(lobby.socket.read());
+								auto & player = lobby.players.get_player(lobby.socket.read());
 								lobby.log.message("Opens fridge...");
 								lobby.log.message(player.name, "Kill me");
 								lobby.log.message("Medic", "Later");
@@ -680,7 +680,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 		auto & self = lobby.players.get_self();
 		lobby.socket.width(Socket::U16) >> text;
 		file << "Text: " << text << std::endl;
-		playing.set(text, self.name, self.color);
+		playing.set(text, self.id, self.name, self.color, self.spectate);
 		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
 			auto & player = lobby.players.get_player_index(i + 1);
 			players.push_back({ player.id, player.name, player.color, player.spectate, 0 });
@@ -728,7 +728,8 @@ auto playing(LobbyState & lobby) -> uint32_t {
 					auto id = uint32_t( lobby.socket.read() );
 					auto progress = lobby.socket.read16();
 					if (id != lobby.players.get_self().id) {
-
+						auto & player = playing.get_player(id);
+						player.progress = progress;
 					}
 					break;
 				}
@@ -738,10 +739,19 @@ auto playing(LobbyState & lobby) -> uint32_t {
 					if (victor == -1) {
 						victor = id;
 					}
+					auto & player = playing.get_player(id);
+					player.status   = Playing::COMPLETED;
+					player.progress = time;
 					break;
 				}
 				case DISCONNECT: {
 					auto id = uint32_t( lobby.socket.read() );
+					auto & player = playing.get_player(id);
+					player.status = Playing::DISCONNECTED;
+					if (id == victor) {
+						victor = -1;
+					}
+					lobby.log.message(std::string("Player '").append(playing.get_player(id).name).append("' disconnected"));
 					break;
 				}
 				case GAME_OVER: {
@@ -749,7 +759,16 @@ auto playing(LobbyState & lobby) -> uint32_t {
 					if (victor != -1) {
 						lobby.log.message(std::string("Player '").append(playing.get_player(victor).name).append("' won the game!"));
 					} else {
-						lobby.log.message("You have all failed");
+						lobby.log.message("You have all failed!");
+					}
+					auto & player = playing.get_self();
+					if (player.status != Playing::SPECTATOR) {
+						lobby.log.message(
+							std::string("--- Performance report ---"
+							"\nCPM: ").append(std::to_string(playing.get_cpm())).append(
+							"\nWPM: ").append(std::to_string(playing.get_wpm())).append(
+							"\nTotal Time: ").append(std::to_string(playing.get_time() / 1000000)).append(" seconds")
+						);
 					}
 					break;
 				}
@@ -766,7 +785,7 @@ auto playing(LobbyState & lobby) -> uint32_t {
 		lobby.players.clear_list();
 		for (auto & player : playing.get_players()) {
 			if (player.status != Playing::DISCONNECTED) {
-				lobby.players.add_player(player.id, player.color, false, player.status, player.name);
+				lobby.players.add_player(player.id, player.color, false, player.status == Playing::SPECTATOR, player.name);
 			}
 		}
 	}

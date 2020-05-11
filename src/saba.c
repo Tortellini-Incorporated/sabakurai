@@ -71,7 +71,6 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			bytesRead = phOnConnect(server, session, client, data);
 		} else {
 			char msgType = *(char*) data;
-			printf("debug: message type: %d\n", msgType);
 			if        (msgType == 2) {//SEND_PROGRESS
 				bytesRead = phSendProgress(server, session, client, data);
 			} else if (msgType == 3) {//COMPLETED_TEXT
@@ -109,6 +108,7 @@ ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_i
 	GameData* session = (GameData*) server->sessionData;
 	session->players[client].name = 0;
 	session->players[client].progress = -1;
+	session->players[client].spectator = 0;
 	session->players[client].finishTime = -1;
 	return SSTATE_NORMAL;
 }
@@ -116,27 +116,21 @@ ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_i
 ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
 	printf("debug: [%s] timed out after 16.66666 milliseconds\n", session->players[client].name);
-	if (session->currentState) {
-		char packet[2];
-		packet[1] = client;
-		if (session->players[client].progress >= 0) {
-			packet[0] = 6;
-			broadcastPacket(server, packet, 2);
+	if (session->players[client].name) {
+		--session->numPlayers;
+		if (!session->currentState && !session->players[client].progress) {
+			--session->numReady;
+		} else if (session->currentState && session->winner == client) {
+			session->winner = -1;
 		}
-		packet[0] = 2;
-		broadcastPacket(server, packet, 2);
-	} else {
-		if (session->players[client].name) {
-			--session->numPlayers;
-			if (!session->players[client].progress) {
-				--session->numReady;
-			}
-			free(session->players[client].name);
-			char packet_data[2];
-			packet_data[0] = 2;
-			packet_data[1] = client;
-			broadcastPacket(server, packet_data, 2);
+		if (session->players[client].spectator) {
+			--session->numSpectators;
 		}
+		free(session->players[client].name);
+		char packet_data[2];
+		packet_data[0] = 2;
+		packet_data[1] = client;
+		broadcastPacket(server, packet_data, 2);
 	}
 	return SSTATE_NORMAL;
 }
@@ -168,7 +162,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (sessionData.currentState) {
-			if (sessionData.startTimer == 0 || sessionData.numCompleted == sessionData.numPlayers) {
+			if (sessionData.startTimer == 0 || sessionData.numCompleted == sessionData.numPlayers - sessionData.numSpectators) {
 				endGame(&server, &sessionData);
 			}
 		} else {
