@@ -1,9 +1,6 @@
-#include <fstream>
 #include <stack>
 
 #include "command_prompt.hpp"
-
-extern std::ofstream file;
 
 auto CommandPrompt::cursor_position() -> Position {
 	if (internal.width == 0) {
