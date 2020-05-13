@@ -47,6 +47,8 @@ struct Command {
 auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & log) -> void;
 auto get_args(int32_t start, const std::string & raw) -> std::vector<std::string>;
 
+auto get_color(std::string color) -> int8_t;
+
 struct LobbyState {
 	Box root;
 	Split split;
@@ -83,6 +85,15 @@ const static auto
 	COLOR_DEFAULT  = 0x00,
 	COLOR_INVERTED = 0x01,
 	COLOR_ERROR    = 0x02;
+
+static auto
+	COLOR_BLUE_B    = 0x03,
+	COLOR_GREEN_B   = 0x04,
+	COLOR_CYAN_B    = 0x05,
+	COLOR_RED_B     = 0x06,
+	COLOR_MAGENTA_B = 0x07,
+	COLOR_YELLOW_B  = 0x08,
+	COLOR_WHITE_B   = 0x09;
 
 auto main(int32_t argc, char ** argv) -> int32_t {
 	LobbyState lobby = {
@@ -141,8 +152,28 @@ auto main(int32_t argc, char ** argv) -> int32_t {
 		return -2;
 	}
 	
+	init_pair(COLOR_DEFAULT,  COLOR_WHITE, COLOR_BLACK);
 	init_pair(COLOR_INVERTED, COLOR_BLACK, COLOR_WHITE);
 	init_pair(COLOR_ERROR,    COLOR_BLACK, COLOR_RED  );
+
+	if (COLOR_PAIRS < 9) {
+		COLOR_BLUE_B    =
+		COLOR_GREEN_B   =
+		COLOR_CYAN_B    =
+		COLOR_RED_B     =
+		COLOR_MAGENTA_B =
+		COLOR_YELLOW_B  =
+		COLOR_WHITE_B   = 0x00;
+		lobby.log.message(COLOR_RED_B, "Unfortunately your terminal does not support enough colors for custom player colors. You will still be able to set your own but you will not be able to see any special colors.");
+	} else {
+		init_pair(COLOR_BLUE_B,    COLOR_BLUE,    COLOR_BLACK);
+		init_pair(COLOR_GREEN_B,   COLOR_GREEN,   COLOR_BLACK);
+		init_pair(COLOR_CYAN_B,    COLOR_CYAN,    COLOR_BLACK);
+		init_pair(COLOR_RED_B,     COLOR_RED,     COLOR_BLACK);
+		init_pair(COLOR_MAGENTA_B, COLOR_MAGENTA, COLOR_BLACK);
+		init_pair(COLOR_YELLOW_B,  COLOR_YELLOW,  COLOR_BLACK);
+		init_pair(COLOR_WHITE_B,   COLOR_WHITE,   COLOR_BLACK);
+	}
 
 	lobby.title_box.set_child(&lobby.title);
 	lobby.player_box.set_child(&lobby.players);
@@ -190,7 +221,8 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 						message.append(1, ' ');
 					}
 				}
-				lobby.log.message(lobby.players.get_self().name, message);
+				auto & self = lobby.players.get_self();
+				lobby.log.message(self.color, self.name, message);
 				lobby.log.draw().refresh();
 			}
 		},
@@ -204,11 +236,12 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 					htons(PORT),
 					lobby.curr_addr = get_ip(args[0])
 				}).connect(5000)) {
-					auto name = lobby.players.get_self().name;
+					auto & player = lobby.players.get_self();
 
 					lobby.socket
-						<< uint8_t( name.size() )
-						<< name
+						<< uint8_t( player.color )
+						<< uint8_t( player.name.size() )
+						<< player.name
 						<< Socket::FLUSH;
 
 					lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
@@ -219,7 +252,7 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 						quit = MID_PLAYING;
 					}
 				} else {
-					lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+					lobby.log.message(COLOR_RED_B, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 					lobby.curr_addr = 0;
 				}
 				lobby.log.draw().refresh();
@@ -236,7 +269,7 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 					}
 				}
 				if (name.size() > 0xFF) {
-					lobby.log.message(COLOR_ERROR, "Sorry. Max name length is 255.");
+					lobby.log.message(COLOR_RED_B, "Sorry. Max name length is 255.");
 					lobby.log.draw().refresh();
 				} else {
 					lobby.players.get_self().name = name;
@@ -251,10 +284,10 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 					"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
 					"Commands:\n"
 					"- /help          - prints the help menu\n"
-					"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
 					"- /quit          - quits the game\n"
 					"- /connect <ip>  - connects to the server at the ip\n"
 					"- /name <string> - changes your name\n"
+					"- /color <color> - changes your player color. one of blue, green, cyan, red, magenta, yellow, or white\n"
 				);
 				lobby.log.draw().refresh();
 			}
@@ -268,12 +301,31 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 		Command{
 			"killme",
 			[&lobby](const std::vector<std::string> & args) -> void {
+				auto & self = lobby.players.get_self();
 				lobby.log.message("Opens fridge...");
-				lobby.log.message(lobby.players.get_self().name, "Kill me");
-				lobby.log.message("Medic", "Later");
+				lobby.log.message(self.color, self.name, "Kill me");
+				lobby.log.message(COLOR_RED_B, "Medic", "Later");
 				lobby.log.draw().refresh();
 			}
 		},
+		Command{
+			"color",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				if (args.size() != 1) {
+					lobby.log.message(COLOR_RED_B, "/color expects one argument");
+					lobby.log.draw().refresh();
+					return;
+				}	
+				auto color = get_color(args[0]);
+				if (color == -1) {
+					lobby.log.message(COLOR_RED_B, "/color expects one of blue, green, cyan, red, magenta, yellow, or white");
+					lobby.log.draw().refresh();
+					return;
+				}
+				lobby.players.get_self().color = color;
+				lobby.players.draw().refresh();
+			}
+		}
 	};
 	
 	while (quit == DISCONNECTED) {
@@ -303,17 +355,17 @@ auto disconnected(LobbyState & lobby) -> uint32_t {
 auto connect(LobbyState & lobby) -> void {
 	auto my_id = lobby.socket.read();
 	auto player_count = lobby.socket.read();
-	file << player_count << std::endl;
 	for (auto i = uint32_t{ 0 }; i < player_count; ++i) {
 		auto id    = uint32_t( lobby.socket.read() );
 		auto spec  = bool( lobby.socket.read() );
+		auto color = lobby.socket.read();
 		auto name  = std::string();
 		lobby.socket.width(Socket::U8) >> name;
 		auto ready = bool( lobby.socket.read() );
 		if (id == my_id) {
 			lobby.players.get_self().id = my_id;
 		} else {
-			lobby.players.add_player(id, 0, ready, spec, name);
+			lobby.players.add_player(id, color, ready, spec, name);
 		}
 	}
 	lobby.players.draw().refresh();
@@ -337,7 +389,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						message.append(1, ' ');
 					}
 				}
-				file << "Say: " << message << std::endl;
 				lobby.socket
 					<< uint8_t( 0x05 )
 					<< uint16_t( message.size() )
@@ -383,12 +434,13 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						AF_INET,
 						htons(PORT),
 						lobby.curr_addr = new_ip
-					}).connect(5000)) {	
-						auto name = lobby.players.get_self().name;
+					}).connect(5000)) {
+						auto & player = lobby.players.get_self();
 
 						lobby.socket
-							<< uint8_t( name.size() )
-							<< name
+							<< uint8_t( player.color )
+							<< uint8_t( player.name.size() )
+							<< player.name
 							<< Socket::FLUSH;
 
 						lobby.log.message(COLOR_DEFAULT, std::string("Connected to server '").append(args[0]).append(1, '\''));
@@ -400,7 +452,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 							quit = MID_PLAYING;
 						}
 					} else {
-						lobby.log.message(COLOR_ERROR, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
+						lobby.log.message(COLOR_RED_B, std::string("Failed to connect to server '").append(args[0]).append(1, '\''));
 						lobby.curr_addr = 0;
 						quit = DISCONNECTED;
 					}
@@ -417,7 +469,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					"Type a message and hit enter to send. Shift + Tab is new line. To enter a command prefix the message with a '/'. To send a message that starts with a '/' use a '//' at the start.\n"
 					"Commands:\n"
 					"- /help          - prints the help menu\n"
-					"- /say <string>  - sends the given string. equivalent to just leaving the /say off\n"
 					"- /quit          - quits the game\n"
 					"- /disconnect    - disconnects from the server\n"
 					"- /connect <ip>  - connects to the server at the ip\n"
@@ -426,6 +477,8 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					"- /spectate      - set yourself to be a spectator\n"
 					"- /partake       - set yourself to be a participant\n"
 					"- /name <string> - changes your name\n"
+					"- /timeout <num> - sets the timeout duration after the first person finishes\n"
+					"- /color <color> - changes your player color. one of blue, green, cyan, red, magenta, yellow, or white\n"
 				);
 				lobby.log.draw().refresh();
 			}
@@ -481,7 +534,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					}
 				}
 				if (name.size() > 0xFF) {
-					lobby.log.message(COLOR_ERROR, "Sorry. Max name length is 255.");
+					lobby.log.message(COLOR_RED_B, "Sorry. Max name length is 255.");
 					lobby.log.draw().refresh();
 				} else {
 					lobby.socket
@@ -490,6 +543,43 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						<< name
 						<< Socket::FLUSH;
 				}
+			}
+		},
+		Command{
+			"timeout",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				if (args.size() < 1) {
+					lobby.log.message(COLOR_RED_B, "/timeout expects an argument");
+					lobby.log.draw().refresh();
+					return;
+				}
+
+				auto num = 0;
+				auto & text = args[0];
+				if (text.size() > 6) {
+					lobby.log.message(COLOR_RED_B, "/timeout requires a number between 0 and 32767 inclusive");
+					lobby.log.draw().refresh();
+					return;
+				}
+				for (auto i = 0; i < text.size(); ++i) {
+					if (text[i] < '0' || text[i] > '9') {
+						lobby.log.message(COLOR_RED_B, "/timeout expects a number");
+						lobby.log.draw().refresh();
+						return;
+					}
+
+					num *= 10;
+					num += text[i] - '0';
+				}
+				if (num > 32767) {
+					lobby.log.message(COLOR_RED_B, "/timeout requires a number between 0 and 32767 inclusive");
+					lobby.log.draw().refresh();
+					return;
+				}
+				lobby.socket
+					<< uint8_t( 0x09 )
+					<< uint16_t( num )
+					<< Socket::FLUSH;
 			}
 		},
 		Command{
@@ -520,6 +610,26 @@ auto connected(LobbyState & lobby) -> uint32_t {
 					lobby.log.draw().refresh();
 				}
 				lobby.socket << Socket::FLUSH;
+			}
+		},
+		Command{
+			"color",
+			[&lobby](const std::vector<std::string> & args) -> void {
+				if (args.size() != 1) {
+					lobby.log.message(COLOR_RED_B, "/color expects one argument");
+					lobby.log.draw().refresh();
+					return;
+				}	
+				auto color = get_color(args[0]);
+				if (color == -1) {
+					lobby.log.message(COLOR_RED_B, "/color expects one of blue, green, cyan, red, magenta, yellow, or white");
+					lobby.log.draw().refresh();
+					return;
+				}
+				lobby.socket
+					<< uint8_t( 0x0A )
+					<< uint8_t( color )
+					<< Socket::FLUSH;
 			}
 		}
 	};
@@ -552,17 +662,20 @@ auto connected(LobbyState & lobby) -> uint32_t {
 				RELAY_SPECTATE = 0x0A,
 				BEGIN_TIMER    = 0x0B,
 				CANCEL_TIMER   = 0x0C,
-				TEXT_SET       = 0x0D;
+				TEXT_SET       = 0x0D,
+				UPDATE_TIMEOUT = 0x0E,
+				UPDATE_COLOR   = 0x0F;
 			if (lobby.socket.poll(0)) {
 				auto read = lobby.socket.read();
 				switch (read) {
 					case CONNECT: {
-						auto id   = uint32_t( lobby.socket.read() );
-						auto name = std::string();
+						auto id    = uint32_t( lobby.socket.read() );
+						auto color = lobby.socket.read();
+						auto name  = std::string();
 						lobby.socket.width(Socket::U8) >> name;
 						if (id != lobby.players.get_self().id) {
 							lobby.log.message(std::string("Player '").append(name).append("' connected"));
-							lobby.players.add_player(id, 0, false, false, name);
+							lobby.players.add_player(id, color, false, false, name);
 							lobby.players.draw().refresh();
 							lobby.log.draw().refresh();
 						}
@@ -610,7 +723,7 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						auto & player = lobby.players.get_player(id);
 						auto message = std::string();
 						lobby.socket.width(Socket::U16) >> message;
-						lobby.log.message(player.name, message);
+						lobby.log.message(player.color, player.name, message);
 						lobby.log.draw().refresh();
 						break;
 					}
@@ -645,8 +758,8 @@ auto connected(LobbyState & lobby) -> uint32_t {
 							case 0: {
 								auto & player = lobby.players.get_player(lobby.socket.read());
 								lobby.log.message("Opens fridge...");
-								lobby.log.message(player.name, "Kill me");
-								lobby.log.message("Medic", "Later");
+								lobby.log.message(player.color, player.name, "Kill me");
+								lobby.log.message(COLOR_RED_B, "Medic", "Later");
 								lobby.log.draw().refresh();
 								break;
 							}
@@ -671,6 +784,19 @@ auto connected(LobbyState & lobby) -> uint32_t {
 								break;
 							}
 						}
+						break;
+					}
+					case UPDATE_TIMEOUT: {
+						auto time = lobby.socket.read16();
+						lobby.log.message(std::string("Timeout changed to ").append(std::to_string(time)).append(" seconds"));
+						lobby.log.draw().refresh();
+						break;
+					}
+					case UPDATE_COLOR: {
+						auto id = lobby.socket.read();
+						auto color = lobby.socket.read();
+						lobby.players.get_player(id).color = color;
+						lobby.players.draw().refresh();
 						break;
 					}
 					default: {
@@ -704,12 +830,13 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 		for (auto i = uint32_t( 0 ); i < player_count; ++i) {
 			auto id = lobby.socket.read();
 			auto spectator = lobby.socket.read();
+			auto color     = lobby.socket.read();
 			auto name = std::string();
 			lobby.socket.width(Socket::U8) >> name;
 			auto progress = uint32_t(lobby.socket.read16());
 			auto finish_time = lobby.socket.read32();
 			if (id != my_id) {
-				players.push_back({ id, name, 0, spectator, 
+				players.push_back({ id, name, color, spectator, 
 					progress == text.size() ?
 						finish_time :
 						progress
@@ -719,7 +846,6 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 	} else {
 		auto text = std::string();
 		lobby.socket.width(Socket::U16) >> text;
-		file << "Text: " << text << std::endl;
 		auto & self = lobby.players.get_self();
 		playing.set(text, self.id, self.name, self.color, self.spectate);
 		for (auto i = 0; i < lobby.players.length() - 1; ++i) {
@@ -765,12 +891,13 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 			auto read = lobby.socket.read();
 			switch (read) {
 				case CONNECT: {
-					auto id   = uint32_t( lobby.socket.read() );
-					auto name = std::string();
+					auto id    = uint32_t( lobby.socket.read() );
+					auto color = lobby.socket.read();
+					auto name  = std::string();
 					lobby.socket.width(Socket::U8) >> name;
 					if (id != lobby.players.get_self().id) {
 						lobby.log.message(std::string("Player '").append(name).append("' connected"));
-						playing.get_players().push_back({ id, name, 0, true, 0 });
+						playing.get_players().push_back({ id, name, color, true, 0 });
 						lobby.players.draw().refresh();
 						lobby.log.draw().refresh();
 					}
@@ -811,9 +938,12 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 				case GAME_OVER: {
 					quit = LOBBY;
 					if (victor != -1) {
-						lobby.log.message(std::string("Player '").append(playing.get_player(victor).name).append("' won the game!"));
+						lobby.log.message(COLOR_GREEN_B, std::string("Player '").append(playing.get_player(victor).name).append("' won the game!"));
 					} else {
 						lobby.log.message("You have all failed!");
+					}
+					if (!playing.completed()) {
+						playing.finalize();
 					}
 					auto & player = playing.get_self();
 					if (player.status != Playing::SPECTATOR) {
@@ -861,9 +991,9 @@ auto dispatch_command(const std::string & raw, const std::vector<Command> & comm
 	file << "Dispatching: " << raw << std::endl;
 	if (raw.size() > 0) {
 		if (raw[0] != '/') {
-			commands[0].callback(get_args(0, raw));
+			commands[0].callback(std::vector<std::string>{ raw });
 		} else if (raw.size() > 1 && raw[1] == '/') {
-			commands[0].callback(get_args(1, raw));
+			commands[0].callback(std::vector<std::string>{ raw.substr(1, raw.size() - 1) });
 		} else {
 			auto end = 0;
 			while (++end < raw.size() && raw[end] != ' ');
@@ -878,7 +1008,7 @@ auto dispatch_command(const std::string & raw, const std::vector<Command> & comm
 			
 			if (i == commands.size()) {
 				auto error_message = std::string("Undefined command '").append(raw, 0, end).append(1, '\'');
-				error.message(COLOR_ERROR, error_message);
+				error.message(COLOR_RED_B, error_message);
 				error.draw().refresh();
 			}
 		}
@@ -898,15 +1028,33 @@ auto get_args(int32_t start, const std::string & raw) -> std::vector<std::string
 			consume_next = true;
 		} else if (raw[i] == '"') {
 			quoted = !quoted;
-		} else if (raw[i] == ' ' && !quoted) {
-			args.push_back(std::move(arg));
-			arg = std::string();
+		} else if ((raw[i] == ' ' || raw[i] == '\n' || raw[i] == '\t') && !quoted) {
+			if (arg.size() > 0) {
+				args.push_back(std::move(arg));
+				arg = std::string();
+			}
 		} else {
 			arg += raw[i];
 		}
 	}
-	args.push_back(std::move(arg));
+	if (arg.size() > 0) {
+		args.push_back(std::move(arg));
+	}
 	return args;
+}
+
+auto get_color(std::string color) -> int8_t {
+	std::transform(color.begin(), color.end(), color.begin(),
+		[](unsigned char c){ return std::tolower(c); }
+	);
+	     if (color == "blue")    { return COLOR_BLUE_B;    }
+	else if (color == "green")   { return COLOR_GREEN_B;   }
+	else if (color == "cyan")    { return COLOR_CYAN_B;    }
+	else if (color == "red")     { return COLOR_RED_B;     }
+	else if (color == "magenta") { return COLOR_MAGENTA_B; }
+	else if (color == "yellow")  { return COLOR_YELLOW_B;  }
+	else if (color == "white")   { return COLOR_WHITE_B;   }
+	else                         { return -1;              }
 }
 
 auto get_ip(const std::string & ip_string) -> in_addr_t {

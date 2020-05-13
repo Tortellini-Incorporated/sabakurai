@@ -11,6 +11,7 @@ class Log : public Window {
 		struct Message {
 			uint32_t    color;
 			uint32_t    author_length;
+			bool        authored;
 			std::string message;
 		};
 

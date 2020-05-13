@@ -48,6 +48,7 @@ class Playing : public Window {
 		auto feed_char(uint32_t c) -> void;
 		auto get_progress() -> uint32_t;
 		auto completed() -> bool;
+		auto finalize() -> void;
 		auto get_time() -> uint32_t;
 		auto get_cpm() -> uint32_t;
 		auto get_wpm() -> uint32_t;

@@ -30,6 +30,10 @@ int phDisconnect(ServerSession* server, GameData* session, int client, char* dat
 
 int phTextSet(ServerSession* server, GameData* session, int client, char* data);        // 8
 
+int phTimeout(ServerSession* server, GameData* session, int client, char* data);        // 9
+
+int phColor(ServerSession* server, GameData* session, int client, char* data);          // 10
+
 // INGAME
 
 int phSendProgress(ServerSession* server, GameData* session, int client, char* data);	// 2
