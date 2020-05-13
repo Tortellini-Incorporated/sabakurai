@@ -12,8 +12,8 @@ These are the messages sent to the client by the server
 
 ### ON_CONNECT
 
- - [ ] saba implemented
- - [ ] kurai implemented
+ - [x] saba implemented
+ - [x] kurai implemented
 
 ```cpp
 struct OnConnect {
@@ -67,6 +67,9 @@ The first byte of every message indicates the type of message it is
 | [RELAY_SPECTATE](#RELAY_SPECTATE) | 10    |
 | [BEGIN_TIMER](#BEGIN_TIMER)       | 11    |
 | [CANCEL_TIMER](#CANCEL_TIMER)     | 12    |
+| [REDACTED]                        | 13    |
+| [UPDATE_TIMEOUT](#UPDATE_TIMEOUT) | 14    |
+| [UPDATE_COLOR](!UPDATE_COLOR)     | 15    |
 
 #### CONNECT
 
@@ -162,7 +165,7 @@ struct RelaySpectate {
 #### BEGIN_TIMER
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
  
 ```cpp
 struct BeginTimer {
@@ -174,11 +177,36 @@ struct BeginTimer {
 #### CANCEL_TIMER
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
  
 ```cpp
 struct CancelTimer {
- 	const MessageType type = CancelTimer; // 12
+ 	const MessageType type = CANCEL_TIMER; // 12
+};
+```
+
+#### UPDATE_TIMEOUT
+
+ - [x] saba implemented
+ - [x] kurai implemented
+
+```cpp
+struct UpdateTimeout {
+	const MessageType type = UPDATE_TIMEOUT; // 14
+	uint16_t timeout;                        // The timeout duration in seconds
+};
+```
+
+#### UPDATE_COLOR
+
+ - [x] saba implemented
+ - [x] kurai implemented
+
+```cpp
+struct UpdateColor {
+	const MessageType type = UPDATE_COLOR; // 15
+	uint8_t id;                            // The id of the client updating their color
+	uint8_t color;                         // The color they have set to
 };
 ```
 
@@ -194,7 +222,7 @@ struct CancelTimer {
 #### UPDATE_PROGRESS
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct UpdateProgress {
@@ -207,7 +235,7 @@ struct UpdateProgress {
 #### PLAYER_COMPLETED
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
 
 ```cpp
 struct PlayerCompleted {
@@ -219,8 +247,8 @@ struct PlayerCompleted {
 
 #### GAME_OVER
 
- - [ ] saba implemented
- - [ ] kurai implemented
+ - [x] saba implemented
+ - [x] kurai implemented
 
 ```cpp
 struct GameOver {
@@ -258,6 +286,9 @@ The first byte of every message indicates the type of message it is
 | [SEND_MESSAGE](#SEND_MESSAGE) | 5     |
 | [SPECTATE](#SPECTATE)         | 6     |
 | [DISCONNECT](#DISCONNECT)     | 7     |
+| [REDACTED]                    | 8     |
+| [TIMEOUT](#TIMEOUT)           | 9     |
+| [COLOR](#COLOR)               | 10    |
 
 #### TOGGLE_READY
 
@@ -310,12 +341,36 @@ struct Spectate {
 #### DISCONNECT
 
  - [x] saba implemented
- - [ ] kurai implemented
+ - [x] kurai implemented
  
 ```cpp
 struct Disconnect {
 	const MessageType type = DISCONNECT; // 7
 	uint8_t id;                          // The id of the disconnected player
+};
+```
+
+#### TIMEOUT
+
+ - [x] saba implemented
+ - [x] kurai implemented
+
+```cpp
+struct Timeout {
+	const MessageType type = TIMEOUT; // 9
+	uint16_t timeout;                 // The duration of the timeout in seconds
+};
+```
+
+#### COLOR
+
+ - [x] saba implemented
+ - [x] kurai implemented
+
+```cpp
+struct Color {
+	const MessageType type = COLOR; // 10
+	uint8_t color;                  // The color being selected
 };
 ```
 
@@ -329,7 +384,7 @@ struct Disconnect {
 #### SEND_PROGRESS
 
 - [x] saba implemented
-- [ ] kurai implemented
+- [x] kurai implemented
 
 ```cpp
 struct SendProgress {
@@ -341,7 +396,7 @@ struct SendProgress {
 #### COMPLETED_TEXT
 
 - [x] saba implemented
-- [ ] kurai implemented
+- [x] kurai implemented
 
 ```cpp
 struct CompletedText {
