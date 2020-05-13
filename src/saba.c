@@ -41,7 +41,6 @@ void startGame(ServerSession* server, GameData* session) {
 	buffer[2] = size & 0xFF;
 	memcpy(buffer + 3, session->text, size);
 	buffer[size + 3] = 0;
-	printf("text (%d): %s\n", size, buffer + 3);
 	broadcastPacket(server, buffer, size + 3);
 }
 
@@ -88,6 +87,10 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 				bytesRead = phDisconnect(server, session, client, data);
 			} else if (msgType == 8) {//TEXT_SET
 				bytesRead = phTextSet(server, session, client, data);
+			} else if (msgType == 9) {//TIMEOUT
+				bytesRead = phTimeout(server, session, client, data);
+			} else if (msgType == 10) {//COLOR
+				bytesRead = phColor(server, session, client, data);
 			}
 		}
 		if (bytesRead < 1) {
@@ -148,6 +151,7 @@ int main(int argc, char** argv) {
 	printf("server starting\n");
 
 	sessionData.startTimer = -1;
+	sessionData.timeout    = 60; // 60 seconds
 
 	while (1) {
 		if (processActivityTimed(&server, 0, 16666, newConnectionCB, packetRecievedCB, disconnectCB)) {
@@ -173,6 +177,11 @@ int main(int argc, char** argv) {
 						char packet_data[2];
 						packet_data[0] = 11;
 						packet_data[1] = 3;
+						broadcastPacket(&server, packet_data, sizeof(packet_data));
+					} else if (sessionData.startTimer % (1000000 / 16666) == 0) {
+						char packet_data[2];
+						packet_data[0] = 11;
+						packet_data[1] = sessionData.startTimer / (1000000 / 16666);
 						broadcastPacket(&server, packet_data, sizeof(packet_data));
 					}
 				} else if (sessionData.startTimer != -1) {

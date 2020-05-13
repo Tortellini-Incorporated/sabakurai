@@ -2,9 +2,10 @@
 // LOBBY
 
 int phOnConnect(ServerSession* server, GameData* session, int client, char* data) {	// NO VALUE
-	int nameLength = data[0];
+	session->players[client].color = data[0];
+	int nameLength = data[1];
 	session->players[client].name = malloc(sizeof(char) * (nameLength + 1));
-	memcpy(session->players[client].name, data + 1, nameLength * sizeof(char));
+	memcpy(session->players[client].name, data + 2, nameLength * sizeof(char));
 	session->players[client].name[nameLength] = 0;
 	printf("debug: [%s] (index %d) announced name\n", session->players[client].name, client);
 	if (session->currentState) {
@@ -17,7 +18,7 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 	int total_message_len = 3 + (7 + session->text_size) * session->currentState;
 	for (int i = 0; i < server->maxClients; ++i) {
 		if ((server->clients[i] || i == client) && session->players[i].name) {
-			total_message_len += 4 + 5 * session->currentState + strlen(session->players[i].name);
+			total_message_len += 5 + 5 * session->currentState + strlen(session->players[i].name);
 		}
 	}
 	msgData = malloc(total_message_len * sizeof(char));
@@ -36,19 +37,17 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 	} else {
 		msgData[2] = session->numPlayers + 1;
 	}
-	int index = 3 + (7 + session->text_size)  * session->currentState;
-	printf("debug: num players (%d)\n", session->numPlayers + 1);
+	int index = 3 + (7 + session->text_size) * session->currentState;
 	for (int i = 0; i < server->maxClients; ++i) {
 		if ((server->clients[i] || i == client) && session->players[i].name) {
-			printf("debug: aoeu\n");
 			size_t name_len = strlen(session->players[i].name) * sizeof(char);
 			msgData[index++] = i;
 			msgData[index++] = session->players[i].spectator;
+			msgData[index++] = session->players[i].color;
 			msgData[index++] = name_len;
 			memcpy(msgData + index, session->players[i].name, name_len);
 			index += name_len;
 			if (session->currentState) {
-				printf("debug: p and ft (%d, %d)\n", session->players[i].progress, session->players[i].finishTime);
 				msgData[index++] = (session->players[i].progress   >>  8) & 0xFF;
 				msgData[index++] = (session->players[i].progress   >>  0) & 0xFF;
 				msgData[index++] = (session->players[i].finishTime >> 24) & 0xFF;
@@ -62,12 +61,13 @@ int phOnConnect(ServerSession* server, GameData* session, int client, char* data
 	}
 	sendPacket(server->clients[client], msgData, total_message_len * sizeof(char));
 
-	msgData = realloc(msgData, 3 + nameLength);
+	msgData = realloc(msgData, 4 + nameLength);
 	msgData[0] = 0;
 	msgData[1] = client;
-	msgData[2] = (char) nameLength;
-	memcpy(msgData + 3, session->players[client].name, nameLength);
-	broadcastPacket(server, msgData, 3 + nameLength);
+	msgData[2] = data[0];
+	msgData[3] = (char) nameLength;
+	memcpy(msgData + 4, session->players[client].name, nameLength);
+	broadcastPacket(server, msgData, 4 + nameLength);
 	free(msgData);
 
 	++session->numPlayers;
@@ -177,6 +177,25 @@ int phTextSet(ServerSession* server, GameData* session, int client, char* data) 
 	return 1;
 }
 
+int phTimeout(ServerSession* server, GameData* session, int client, char* data) {
+	unsigned char * udata = data;
+	session->timeout = udata[1] << 8 | udata[2];
+	udata[0] = 14;
+	broadcastPacket(server, data, 3);
+	udata[0] = 9;
+	return 2;
+}
+
+int phColor(ServerSession* server, GameData* session, int client, char* data) {
+	session->players[client].color = data[1];
+	char packet[3];
+	packet[0] = 15;
+	packet[1] = client;
+	packet[2] = data[1];
+	broadcastPacket(server, packet, 3);
+	return 1;
+}
+
 // INGAME
 
 int phSendProgress(ServerSession* server, GameData* session, int client, char* data) {	// 2
@@ -206,7 +225,7 @@ int phCompletedText(ServerSession* server, GameData* session, int client, char* 
 	packet[5] = data[4];
 	broadcastPacket(server, packet, 6);
 	if (session->startTimer < 0) {
-		session->startTimer = 3600;//60 seconds
+		session->startTimer = (int) (session->timeout * 1000000.0 / 16666.0);
 	}
 	if (session->winner == -1 || time < session->winnerTime) {
 		session->winner     = client;

@@ -113,29 +113,33 @@ auto PlayerList::draw() -> Window& {
 		}
 		for (auto i = 0; i < max; ++i) {
 			auto & player = players[offset + i];
-			auto print_name = std::string();
+			auto print_prefix = std::string();
 			if (player.spectate) {
-				print_name.append("   ");
+				print_prefix.append("SPC");
 			} else if (player.ready) {
-				print_name.append("[*]");
+				print_prefix.append("[x]");
 			} else {
-				print_name.append("[ ]");
+				print_prefix.append("[ ]");
 			}
-			print_name.append(" ");
+			print_prefix.append(" ");
 			if (i == 0) {
-				print_name.append("> ");
+				print_prefix.append("> ");
 			} else {
-				print_name.append("  ");
+				print_prefix.append("  ");
 			}
-			print_name.append(player.name);
-			if (internal.width == 3) {
-				move(1, i).print(".");
-			} else if (internal.width == 4) {
-				move(1, i).print("..");
-			} else if (print_name.size() > internal.width) {
-				move(1, i).print("%s...", print_name.substr(0, internal.width - 4).c_str());
-			} else if (internal.width >= 3) {
-				move(1, i).print("%s", print_name.c_str());
+			if (internal.width > 2) {
+				if (internal.width < 2 + print_prefix.size()) {
+					move(1, i).print("%s", print_prefix.substr(0, internal.width - 2).c_str());
+				} else {
+					move(1, i).print("%s", print_prefix.c_str());
+				}
+				set_color(player.color);
+				if (internal.width < 2 + print_prefix.size() + player.name.size()) {
+					print("%s", player.name.substr(0, internal.width - 2 - print_prefix.size()).c_str());
+				} else {
+					print("%s", player.name.c_str());
+				}
+				reset_color(player.color);
 			}
 		}
 	}

@@ -1,4 +1,5 @@
 #include <stack>
+#include <algorithm>
 #include <fstream>
 
 #include "log.hpp"
@@ -56,14 +57,14 @@ auto Log::scroll_down(uint32_t amount) -> void {
 }
 
 auto Log::message(const std::string & message) -> void {
-	log.push_back({ 0, uint32_t( message.size() ), message });
+	log.push_back({ 0, uint32_t( message.size() ), false, message });
 	if (offset > 0) {
 		++offset;
 	}
 }
 
 auto Log::message(uint32_t color, const std::string & message) -> void {
-	log.push_back({ color, uint32_t( message.size() ), message });
+	log.push_back({ color, uint32_t( message.size() ), false, message });
 	if (offset > 0) {
 		++offset;
 	}
@@ -79,7 +80,7 @@ auto Log::message(const std::string & author, const std::string & message) -> vo
 			expanded.push_back(c);
 		}
 	}
-	log.push_back({ 0, uint32_t( author.size() + 3 ), std::move(expanded) });
+	log.push_back({ 0, uint32_t( author.size() ), true, std::move(expanded) });
 	if (offset > 0) {
 		++offset;
 	}
@@ -95,7 +96,7 @@ auto Log::message(uint32_t color, const std::string & author, const std::string 
 			expanded.push_back(c);
 		}
 	}
-	log.push_back({ color, uint32_t( author.size() + 3 ), std::move(expanded) });
+	log.push_back({ color, uint32_t( author.size() ), true, std::move(expanded) });
 	if (offset > 0) {
 		++offset;
 	}
@@ -138,10 +139,43 @@ auto Log::draw() -> Window& {
 		if (i > int32_t( internal.height ) - 1) {
 			i = internal.height - 1;
 		}
+		auto author_length = uint32_t( 0 );
 		for (; i >= 0; --i) {
 			auto & line = lines.top();
-			if (line.length > 0) {
-				auto & message = log[line.message_index];
+			auto & message = log[line.message_index];
+			if (line.begin == 0) {
+				author_length = message.author_length;
+				auto line_length = line.length;
+				move(0, i);
+				if (message.authored) {
+					print("[");
+					--line_length;
+				}
+				set_color(message.color);
+				print("%s", message.message.substr(message.authored, std::min(line_length, author_length)).c_str());
+				reset_color(message.color);
+				if (line_length > author_length) {
+					print("%s", message.message.substr(message.authored + author_length, line_length - author_length).c_str());
+					author_length = 0;
+				} else {
+					author_length -= line_length;
+				}	
+			} else if (author_length > 0) {	
+				auto out = std::string();
+				if (line.indent) {
+					out.append("    ");
+				}
+				out.append(message.message.substr(line.begin, line.length));
+				set_color(message.color);
+				move(0, i).print("%s", out.substr(line.begin, std::min(line.length, author_length)).c_str());
+				reset_color(message.color);
+				if (line.length > author_length) {
+					print("%s", out.substr(line.begin + author_length, line.length - author_length).c_str());
+					author_length = 0;
+				} else {
+					author_length -= line.length;
+				}	
+			} else {
 				auto out = std::string();
 				if (line.indent) {
 					out.append("    ");

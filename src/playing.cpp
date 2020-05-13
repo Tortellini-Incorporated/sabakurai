@@ -1,4 +1,5 @@
 #include <queue>
+#include <algorithm>
 #include <fstream>
 
 #include "playing.hpp"
@@ -69,7 +70,7 @@ auto Playing::feed_char(uint32_t c) -> void {
 		if (self.incorrect == 0 && text[self.progress] == c) {
 			++self.progress;
 			if (self.progress == text.size()) {
-				end_time = std::chrono::steady_clock::now();
+				finalize();
 			}
 		} else {
 			++self.incorrect;
@@ -82,7 +83,12 @@ auto Playing::get_progress() -> uint32_t {
 }
 
 auto Playing::completed() -> bool {
-	return self.progress  == text.size();
+	return self.progress == text.size();
+}
+
+auto Playing::finalize() -> void {
+	file << "Finalizing..." << std::endl;
+	end_time = std::chrono::steady_clock::now();
 }
 
 auto Playing::get_time() -> uint32_t {
@@ -112,8 +118,17 @@ auto Playing::draw() -> Window& {
 	move(0,                  1                  ).vert_line(internal.height - 2, ACS_VLINE);
 	move(internal.width - 1, 1                  ).vert_line(internal.height - 2, ACS_VLINE);
 
+	// Clear the internals
+	for (auto i = 0; i < internal.height - 2; ++i) {
+		move(1, 1 + i).horz_line(internal.width - 2, ' ');
+	}
+
 	// Opponents
-	auto lines = std::queue<std::string>();
+	struct Entry {
+		std::string text;
+		uint32_t color;
+	};
+	auto lines = std::queue<std::vector<Entry>>();
 	for (auto i = uint32_t( 0 ); i < players.size(); ++i) {
 		auto & player = players[i];
 		if (player.status == DISCONNECTED && player.progress == 0) {
@@ -125,56 +140,64 @@ auto Playing::draw() -> Window& {
 					.append("s ");
 
 				auto width = internal.width - 6 - completed_text.size();
-				auto line = std::string(1, '[')
-					.append(width, '/')
-					.append(completed_text)
-				    .append(1, ']');
-				lines.push(line);
+				lines.push(std::vector<Entry>{
+					{ std::string(1, '['),           0            },
+					{ std::string(width, '/'),       player.color },
+					{ completed_text.append(1, ']'), 0            }
+				});
 
 				auto cpm = uint32_t(text.size() / (float(player.progress) / 60000000.0f));
-				line = std::string(1, ' ')
-					.append(player.name)
-					.append("  /  CPM [ ")
-					.append(std::to_string(cpm    ))
-					.append("  /  WPM [ ")
-					.append(std::to_string(cpm / 5))
-					.append(" ]");
-				lines.push(line);
+				lines.push(std::vector<Entry>{
+					{
+						std::string(1, ' ')
+							.append(player.name)
+							.append("  /  CPM [ ")
+							.append(std::to_string(cpm    ))
+							.append("  /  WPM [ ")
+							.append(std::to_string(cpm / 5))
+							.append(" ]"),
+						0
+					}
+				});
 			} else if (player.status == DISCONNECTED) {
 				auto percent = float(player.progress) / float(text.size());
-				lines.push(std::string(1, '[')
-					.append(                     uint32_t((internal.width - 6) * percent), 'x')
-					.append(internal.width - 6 - uint32_t((internal.width - 6) * percent), ' ')
-					.append(1, ']')
-				);
-				lines.push(std::string(1, ' ').append(player.name).append("  /  DISCONNECTED"));
+				lines.push(std::vector<Entry>{
+					{ std::string(1, '['),                                                                            0            },
+					{ std::string(                     uint32_t((internal.width - 6) * percent), 'x'),                player.color },
+					{ std::string(internal.width - 6 - uint32_t((internal.width - 6) * percent), ' ').append(1, ']'), 0            }
+				});
+				lines.push({{ std::string(1, ' ').append(player.name).append("  /  DISCONNECTED"), 0 }});
 			} else if (player.status == SPECTATOR) {
-				lines.push(std::string(1, '[').append(internal.width - 6, ' ').append(1, ']'));
-				lines.push(std::string(player.name).append("  /  SPECTATOR"));
+				lines.push({{ std::string(1, '[').append(internal.width - 6, ' ').append(1, ']'), 0 }});
+				lines.push({{ std::string(player.name).append("  /  SPECTATOR"), 0 }});
 			} else {
 				auto width = internal.width - 6 - 15;
 				auto percent = float(player.progress) / float(text.size());
-				auto line = std::string(1, '[')
-					.append(        uint32_t(width * percent), '/')
-					.append(width - uint32_t(width * percent), ' ')
+				auto line = std::vector<Entry>();
+				line.push_back({ std::string(1, '['), 0 });
+				line.push_back({ std::string(uint32_t(width * percent), '/'), player.color });
+				auto entry = std::string(width - uint32_t(width * percent), ' ')
 					.append("| Progress ");
 				if (percent < 10) {
-					line.append(1, ' ');
+					entry.append(1, ' ');
 				}
-				line.append(std::to_string(uint32_t(percent * 100.0f)))
-				    .append("% ]");
-				lines.push(line);
+				entry.append(std::to_string(uint32_t(percent * 100.0f)))
+				     .append("% ]");
+				line.push_back({ std::move(entry), 0 });
+				lines.push(std::move(line));
 
 				auto time = std::chrono::duration<float>(std::chrono::steady_clock::now() - start_time).count() / 60.0f;
 				auto cpm = uint32_t(player.progress / time);
-				line = std::string(1, ' ')
-					.append(player.name)
-					.append("  /  CPM [ ")
-					.append(std::to_string(cpm    ))
-					.append("  /  WPM [ ")
-					.append(std::to_string(cpm / 5))
-					.append(" ]");
-				lines.push(line);
+				lines.push({{
+					std::string(1, ' ')
+						.append(player.name)
+						.append(  "  /  CPM [ ")
+						.append(std::to_string(cpm    ))
+						.append(" ]  /  WPM [ ")
+						.append(std::to_string(cpm / 5))
+						.append(" ]"),
+					0
+				}});
 			}
 		}
 	}
@@ -192,7 +215,11 @@ auto Playing::draw() -> Window& {
 		if (line_num % 3 == count) {
 			horz_line(internal.width - 4, ACS_HLINE);
 		} else {
-			print("%s", lines.front().c_str());
+			for (auto & entry : lines.front()) {
+				set_color(entry.color);
+				print("%s", entry.text.c_str());
+				reset_color(entry.color);
+			}
 			lines.pop();
 		}
 	}
@@ -205,8 +232,13 @@ auto Playing::draw() -> Window& {
 	move(internal.width - 1, internal.height - 7).add_char(ACS_RTEE);
 	move(1,                  internal.height - 7).horz_line(internal.width - 2, ACS_HLINE);
 	
-	auto name_header = std::string("////  ").append(self.name).append("  ").append(internal.width - 12, '/');
-	move(2,                  internal.height - 6).print("%s", name_header.substr(0, internal.width - 4).c_str());
+	move(2, internal.height - 6).print("%s", std::string("////  ").substr(0, std::clamp(int32_t(internal.width) - 2, 0, 6)).c_str());
+	set_color(self.color);
+	auto name = self.name;
+	name.append(2, ' ');
+	print("%s", name.substr(0, std::clamp(int32_t(internal.width) - 8, 0, int32_t(name.size()))).c_str());
+	reset_color(self.color);
+	print("%s", std::string(std::max(int32_t(internal.width) - 8 - int32_t(name.size()), 0), '/').c_str());
 
 	if (self.status != SPECTATOR) {
 		auto local_progress = self.progress;
@@ -214,13 +246,11 @@ auto Playing::draw() -> Window& {
 			local_progress = text.size();
 		}
 		auto start = (internal.width / 2) - local_progress - self.incorrect;
-		if (start < 2) {
+		if (local_progress + self.incorrect > internal.width / 2 - 2) {
 			start = 2;
 		}
 		auto text_width = internal.width - 4;
 
-		move(1, internal.height - 4).horz_line(internal.width - 2, ' ');
-		set_color(0);
 		move(start, internal.height - 4);
 		if (local_progress > 0 && self.incorrect < text_width / 2) {
 			if (local_progress + self.incorrect > text_width / 2) {
@@ -229,7 +259,6 @@ auto Playing::draw() -> Window& {
 				print("%s", text.substr(0, local_progress).c_str());
 			}
 		}
-		reset_color(0);
 		set_color(2);
 		if (self.incorrect > 0) {
 			if (self.incorrect < text_width / 2) {
@@ -247,10 +276,9 @@ auto Playing::draw() -> Window& {
 		}
 		reset_color(1);
 	
-		auto time = std::chrono::duration<float>(std::chrono::steady_clock::now() - start_time).count();
-		if (completed()) {
-			time = std::chrono::duration<float>(end_time - start_time).count();
-		}
+		auto time = self.status == COMPLETED ? 
+			std::chrono::duration<float>(end_time - start_time).count() :
+			std::chrono::duration<float>(std::chrono::steady_clock::now() - start_time).count();
 
 		auto cpm = uint32_t(float(local_progress) / (time / 60.0f));
 		auto info_text = std::string("Progress [ ")
