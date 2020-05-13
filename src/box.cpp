@@ -1,8 +1,4 @@
-#include <fstream>
-
 #include "box.hpp"
-
-extern std::ofstream file;
 
 auto Box::component_resize() -> void {
 	if (child != 0) {

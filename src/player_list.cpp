@@ -1,10 +1,7 @@
 #include <random>
 #include <ctime>
-#include <fstream>
 
 #include "player_list.hpp"
-
-extern std::ofstream file;
 
 auto PlayerList::component_resize() -> void {
 	if (players.size() - offset < internal.height) {

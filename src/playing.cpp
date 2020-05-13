@@ -1,10 +1,7 @@
 #include <queue>
 #include <algorithm>
-#include <fstream>
 
 #include "playing.hpp"
-
-extern std::ofstream file;
 
 auto Playing::component_resize() -> void {
 	block(false);
@@ -87,7 +84,6 @@ auto Playing::completed() -> bool {
 }
 
 auto Playing::finalize() -> void {
-	file << "Finalizing..." << std::endl;
 	end_time = std::chrono::steady_clock::now();
 }
 

@@ -4,7 +4,6 @@
 #include <thread>
 #include <string>
 #include <iostream>
-#include <fstream>
 
 #include "socket.hpp"
 
@@ -15,8 +14,6 @@
 #include "log.hpp"
 #include "command_prompt.hpp"
 #include "playing.hpp"
-
-std::ofstream file("debug.log");
 
 auto get_ip(const std::string & ip_string) -> in_addr_t;
 
@@ -372,8 +369,6 @@ auto connect(LobbyState & lobby) -> void {
 }
 
 auto connected(LobbyState & lobby) -> uint32_t {
-	file << "Connected" << std::endl;
-		
 	auto quit = CONNECTED;
 
 	////// COMMANDS //////
@@ -420,7 +415,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 			"connect",
 			[&quit, &lobby](const std::vector<std::string> & args) -> void {
 				auto new_ip = get_ip(args[0]);
-				file << "New ip: " << new_ip << ", Old ip: " << lobby.curr_addr << std::endl;
 				if (new_ip != lobby.curr_addr) {
 					lobby.socket
 						<< uint8_t( 0x07 )
@@ -703,7 +697,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						break;
 					}
 					case START: {
-						file << "Game is starting..." << std::endl;
 						quit = PLAYING;
 						break;
 					}
@@ -712,7 +705,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						auto & player = lobby.players.get_player(id);
 						auto new_name = std::string();
 						lobby.socket.width(Socket::U8) >> new_name;
-						file << "New Name: " << new_name << std::endl;
 						lobby.log.message(std::string("Player '").append(player.name).append("' has changed their name to '").append(player.name = new_name).append("'"));
 						lobby.log.draw().refresh();
 						lobby.players.draw().refresh();
@@ -765,7 +757,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 							}
 							case 1: {
 								auto selection = lobby.socket.read16();
-								file << "Selection: " << selection << std::endl;
 								switch (selection) {
 									case 66: {
 										lobby.log.message("A plague is a approaching...");
@@ -800,7 +791,6 @@ auto connected(LobbyState & lobby) -> uint32_t {
 						break;
 					}
 					default: {
-						file << "Wakarimasen deshita " << uint32_t( read ) << std::endl;
 					}
 				}
 			}
@@ -957,7 +947,6 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 					break;
 				}
 				default: {
-					file << "Wakarimasen 2 deshita: " << read << std::endl;
 				}
 			}
 		}
@@ -988,7 +977,6 @@ auto playing(LobbyState & lobby, bool newly_connected) -> uint32_t {
 }
 
 auto dispatch_command(const std::string & raw, const std::vector<Command> & commands, Log & error) -> void {
-	file << "Dispatching: " << raw << std::endl;
 	if (raw.size() > 0) {
 		if (raw[0] != '/') {
 			commands[0].callback(std::vector<std::string>{ raw });

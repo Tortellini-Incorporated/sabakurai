@@ -1,8 +1,4 @@
-#include <fstream>
-
 #include "window.hpp"
-
-extern std::ofstream file;
 
 auto Window::root_get_char(const Window & window) -> uint32_t {
 	auto c = ::wgetch(window.internal.window);

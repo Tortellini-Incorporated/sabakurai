@@ -1,7 +1,5 @@
 #include <stack>
 #include <algorithm>
-#include <fstream>
-
 #include "log.hpp"
 
 Log::Log() :
@@ -18,8 +16,6 @@ Log::Log(Window & root, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 	Window(root, true),
 	offset(0),
 	log() {}
-
-extern std::ofstream file;
 
 auto Log::scroll_up(uint32_t amount) -> void {
 	auto lines = 0;
