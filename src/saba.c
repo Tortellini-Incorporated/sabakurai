@@ -1,12 +1,16 @@
 #include "server.h"
-#include "packetHandlers.h"
+
 #include "gameSession.h"
 #include "sabaSettings.h"
+#include "packetHandlers.h"
 
 //server
 
-int getRandomStringMesg(char* buffer) {
+int getRandomStringMesg(GameData* session) {
 	int numToRead = rand() % NUM_STRINGS;
+	if (session->text_size) {
+		numToRead = session->text_size;
+	}
 	static char titleBuffer[32];
 	sprintf(titleBuffer, "texts/%d", numToRead);
 	
@@ -18,11 +22,9 @@ int getRandomStringMesg(char* buffer) {
 
 	printf("reading file %d\n", numToRead);
 
-	int size = fread(buffer + 3, 1, MAX_FILE_SIZE, file);
-	buffer[0] = 3;
-	buffer[1] = size >> 8;
-	buffer[2] = size & 0x00FF;
-	return size + 3;
+	int bytes = fread(session->text, 1, MAX_FILE_SIZE, file);
+	fclose(file);
+	return session->text_size = bytes;
 }
 
 void startGame(ServerSession* server, GameData* session) {
@@ -32,48 +34,30 @@ void startGame(ServerSession* server, GameData* session) {
 		session->players[i].finishTime = -1;
 	}
 	session->startTimer = -1;
-	static char buffer[MAX_FILE_SIZE];
+	int size = getRandomStringMesg(session);
+	char buffer[MAX_FILE_SIZE];
 	buffer[0] = 3;
-	int size = getRandomStringMesg(buffer + 3);
 	buffer[1] = (size >> 8) & 0xFF;
 	buffer[2] = size & 0xFF;
-	broadcastPacket(server, buffer, size);
+	memcpy(buffer + 3, session->text, size);
+	buffer[size + 3] = 0;
+	broadcastPacket(server, buffer, size + 3);
 }
 
 void endGame(ServerSession* server, GameData* session) {
-	char* packet;
-	int totalMsgLen = 2;
-
-	session->numPlayers = 0;
 	session->currentState = 0;
 	session->startTimer = -1;
+	session->numReady = 0;
+	session->numCompleted = 0;
+	session->text_size = 0;
 	
 	for (int i = 0; i < server->maxClients; ++i) {
 		session->players[i].progress = -1;
 		session->players[i].finishTime = -1;
-		if (server->clients[i] && session->players[i].name) {
-			++session->numPlayers;
-			totalMsgLen += 3 + strlen(session->players[i].name);
-		}
 	}
-	packet = malloc(totalMsgLen);
+	char packet[1];
 	packet[0] = 7;
-	packet[1] = session->numPlayers;
-	
-	int index = 2;
-	
-	for (int i = 0; i < server->maxClients; ++i) {
-		if (server->clients[i] && session->players[i].name) {
-			int nameLen = strlen(session->players[i].name);
-			packet[index++] = i;
-			packet[index++] = 0;//nobody should be ready
-			packet[index++] = nameLen;
-			memcpy(packet + index, session->players[i].name, nameLen);
-			index += nameLen;
-		}
-	}
-	broadcastPacket(server, packet, totalMsgLen);
-	free(packet);
+	broadcastPacket(server, packet, 1);
 }
 
 ServerState packetRecievedCB(ServerSession* server, int client, void* data, int length) {
@@ -89,13 +73,24 @@ ServerState packetRecievedCB(ServerSession* server, int client, void* data, int 
 			} else if (msgType == 3) {//COMPLETED_TEXT
 				bytesRead = phCompletedText(server, session, client, data);
 			} else if (msgType == 4) {//EXIT_TO_LOBBY
-				bytesRead = phExitToLobby(server, session, client, data);
+				// bytesRead = phExitToLobby(server, session, client, data);
+				bytesRead = phDisconnect(server, session, client, data);
 			} else if (msgType == 0) {//TOGGLE_READY
 				bytesRead = phToggleReady(server, session, client, data);
 			} else if (msgType == 1) {//CHANGE_NAME
 				bytesRead = phChangeName(server, session, client, data);
 			} else if (msgType == 5) {//SEND_MESSAGE
 				bytesRead = phSendMessage(server, session, client, data);
+			} else if (msgType == 6) {//SPECTATE
+				bytesRead = phToggleSpectate(server, session, client, data);
+			} else if (msgType == 7) {//DISCONNECT
+				bytesRead = phDisconnect(server, session, client, data);
+			} else if (msgType == 8) {//TEXT_SET
+				bytesRead = phTextSet(server, session, client, data);
+			} else if (msgType == 9) {//TIMEOUT
+				bytesRead = phTimeout(server, session, client, data);
+			} else if (msgType == 10) {//COLOR
+				bytesRead = phColor(server, session, client, data);
 			}
 		}
 		if (bytesRead < 1) {
@@ -114,33 +109,31 @@ ServerState newConnectionCB(ServerSession* server, int client, struct sockaddr_i
 	GameData* session = (GameData*) server->sessionData;
 	session->players[client].name = 0;
 	session->players[client].progress = -1;
+	session->players[client].spectator = 0;
 	session->players[client].finishTime = -1;
+	return SSTATE_NORMAL;
 }
 
 ServerState disconnectCB(ServerSession* server, int client) {
 	GameData* session = (GameData*) server->sessionData;
-	printf("debug: [%s] disconnected\n", session->players[client].name);
-	if (session->currentState) {
-		char packet[2];
-		packet[1] = client;
-		if (session->players[client].progress >= 0) {
-			packet[0] = 6;
-			broadcastPacket(server, packet, 2);
+	printf("debug: [%s] timed out after 16.66666 milliseconds\n", session->players[client].name);
+	if (session->players[client].name) {
+		--session->numPlayers;
+		if (!session->currentState && !session->players[client].progress) {
+			--session->numReady;
+		} else if (session->currentState && session->winner == client) {
+			session->winner = -1;
 		}
-		packet[0] = 2;
-		broadcastPacket(server, packet, 2);
-	} else {
-		if (session->players[client].name) {
-			--session->numPlayers;
-			if (!session->players[client].progress) {
-				--session->numReady;
-			}
-			char packet_data[2];
-			packet_data[0] = 2;
-			packet_data[1] = client;
-			broadcastPacket(server, packet_data, 2);
+		if (session->players[client].spectator) {
+			--session->numSpectators;
 		}
+		free(session->players[client].name);
+		char packet_data[2];
+		packet_data[0] = 2;
+		packet_data[1] = client;
+		broadcastPacket(server, packet_data, 2);
 	}
+	return SSTATE_NORMAL;
 }
 
 int main(int argc, char** argv) {
@@ -157,8 +150,8 @@ int main(int argc, char** argv) {
 
 	printf("server starting\n");
 
-	int interval = 5;
 	sessionData.startTimer = -1;
+	sessionData.timeout    = 60; // 60 seconds
 
 	while (1) {
 		if (processActivityTimed(&server, 0, 16666, newConnectionCB, packetRecievedCB, disconnectCB)) {
@@ -171,15 +164,32 @@ int main(int argc, char** argv) {
 		}
 
 		if (sessionData.currentState) {
-			if (sessionData.startTimer == 0) {
+			if (sessionData.startTimer == 0 || sessionData.numCompleted == sessionData.numPlayers - sessionData.numSpectators) {
 				endGame(&server, &sessionData);
 			}
 		} else {
-			if (sessionData.numReady != sessionData.numPlayers) {
-				sessionData.startTimer = -1;
-			}
-			if (sessionData.startTimer == 0) {
-				startGame(&server, &sessionData);
+			if (sessionData.numPlayers - sessionData.numSpectators > 0) {
+				if (sessionData.numReady + sessionData.numSpectators == sessionData.numPlayers) {
+					if (sessionData.startTimer == 0) {
+						startGame(&server, &sessionData);
+					} else if (sessionData.startTimer == -1) {
+						sessionData.startTimer = (int) (3.0 * 1000000.0 / 16666.0);
+						char packet_data[2];
+						packet_data[0] = 11;
+						packet_data[1] = 3;
+						broadcastPacket(&server, packet_data, sizeof(packet_data));
+					} else if (sessionData.startTimer % (1000000 / 16666) == 0) {
+						char packet_data[2];
+						packet_data[0] = 11;
+						packet_data[1] = sessionData.startTimer / (1000000 / 16666);
+						broadcastPacket(&server, packet_data, sizeof(packet_data));
+					}
+				} else if (sessionData.startTimer != -1) {
+					sessionData.startTimer = -1;
+					char packet_data[1];
+					packet_data[0] = 12;
+					broadcastPacket(&server, packet_data, sizeof(packet_data));
+				}
 			}
 		}
 	}

@@ -30,6 +30,10 @@ auto CommandPrompt::cursor_position() -> Position {
 	return pos;
 }
 
+auto CommandPrompt::component_resize() -> void {
+	block(false);
+}
+
 CommandPrompt::CommandPrompt() :
 	Window(),
 	command(),
@@ -171,6 +175,12 @@ auto CommandPrompt::height_change(uint32_t max) -> bool {
 
 auto CommandPrompt::get() -> std::string {
 	return command;
+}
+
+auto CommandPrompt::get_and_clear() -> std::string {
+	auto ret = command;
+	clear_command();
+	return ret;
 }
 
 auto CommandPrompt::clear_command() -> void {
