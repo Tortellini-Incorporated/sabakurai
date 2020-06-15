@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -48,8 +49,8 @@ Socket::Socket(int domain, int type, int protocol) :
 	if (socket == -1) {
 		throw std::string("Failed to create socket");
 	}
-	pollFd.fd = socket;
-	pollFd.events = POLLIN;
+	pollFd.fd     = socket;
+	pollFd.events = POLLIN | POLLOUT;
 }
 
 auto Socket::addressInfo(const sockaddr_in & addressInfo) -> Socket& {
@@ -67,12 +68,32 @@ auto Socket::width(Width width) -> Socket& {
 	return *this;
 }
 
-auto Socket::connect() -> void {
-	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1) {
+auto Socket::connect(uint32_t timeout) -> bool {
+	::fcntl(socket, F_SETFL, O_NONBLOCK);
+	if (::connect(socket, (sockaddr *) &mAddressInfo, sizeof(sockaddr_in)) == -1 && errno != EINPROGRESS) {
 		file << "Connection error: " << strerror(errno) << std::endl;
-		throw std::string("Failed to connect to server");
+		close();
+		return connected = false;
 	}
-	connected = true;
+	::fcntl(socket, F_SETFL, ~O_NONBLOCK);
+	
+	if (::poll(&pollFd, 1, timeout) < 1) {
+		file << "Connection timed out" << std::endl;
+		close();
+		return connected = false;
+	}
+
+	auto option   = int32_t();
+	auto int_size = sizeof(int32_t);
+	if (getsockopt(socket, SOL_SOCKET, SO_ERROR, (void*) &option, (socklen_t *) &int_size)) {
+		file << "Connection error: " << errno << ", " << strerror(errno) << std::endl;
+		return connected = false;
+	}
+	if (option) {
+		file << "Connection error: " << option << ", " << strerror(option) << std::endl;
+		return connected = false;
+	}
+	return connected = true;
 }
 
 auto Socket::close() -> void {
@@ -93,8 +114,23 @@ auto Socket::poll(uint32_t timeout) -> bool {
 auto Socket::read() -> uint8_t {
 	char c;
 	recv(socket, &c, 1, mFlags.flags);
-	file << "C: " << (uint32_t) c << std::endl;
 	return c;
+}
+
+auto Socket::read16() -> uint16_t {
+	uint8_t c[2];
+	recv(socket, (char *) c, 2, mFlags.flags);
+	return (uint16_t( c[0] ) << 8)
+	     | (uint16_t( c[1] ) << 0);
+}
+
+auto Socket::read32() -> uint32_t {
+	uint8_t c[4];
+	recv(socket, (char *) c, 4, mFlags.flags);
+	return (uint32_t( c[0] ) << 24)
+	     | (uint32_t( c[1] ) << 16)
+	     | (uint32_t( c[2] ) << 8 )
+		 | (uint32_t( c[3] ) << 0 );
 }
 
 auto Socket::operator<<(const char * str) -> Socket& {
@@ -156,16 +192,23 @@ auto Socket::operator<<(uint32_t data) -> Socket& {
 }
 
 auto Socket::operator<<(Flush flush) -> Socket& {
-	if (flush == FLUSH_LINE) {
-		message.push_back('\n');
+	if (!is_empty()) {
+		if (flush == FLUSH_LINE) {
+			message.push_back('\n');
+		}
+		send(socket, &message[0], message.size(), mFlags.flags);
+		message.clear();
 	}
-	for (auto i : message) {
-		file << uint32_t( i ) << " ";
-	}
-	file << std::endl;
-	send(socket, &message[0], message.size(), mFlags.flags);
+	return *this;
+}
+
+auto Socket::clear() -> Socket& {
 	message.clear();
 	return *this;
+}
+
+auto Socket::is_empty() -> bool {
+	return message.empty();
 }
 
 auto Socket::operator>>(std::string & string) -> Socket& {
@@ -177,8 +220,8 @@ auto Socket::operator>>(std::string & string) -> Socket& {
 }
 
 auto Socket::operator>>(std::vector<char> & vector) -> Socket& {
-	char buffer[4];
-	recv(socket, buffer, mWidth + 1, mFlags.flags);
+	uint8_t buffer[4];
+	recv(socket, (char*) buffer, mWidth + 1, mFlags.flags);
 	auto length = uint32_t( buffer[0] );
 	for (auto i = 1; i <= mWidth; ++i) {
 		length <<= 8;

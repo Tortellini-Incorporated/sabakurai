@@ -73,11 +73,13 @@ class Socket {
 		auto addressInfo(const sockaddr_in & addressInfo) -> Socket&;
 		auto flags(Flags flags) -> Socket&;
 		auto width(Width width) -> Socket&;
-		auto connect() -> void;
+		auto connect(uint32_t timeout) -> bool;
 		auto close() -> void;
 
 		auto poll(uint32_t timeout) -> bool;
-		auto read() -> uint8_t;
+		auto read()   -> uint8_t;
+		auto read16() -> uint16_t;
+		auto read32() -> uint32_t;
 
 		auto operator<<(const char * str) -> Socket&;
 		auto operator<<(const std::string & str) -> Socket&;
@@ -89,6 +91,9 @@ class Socket {
 		auto operator<<( int32_t data) -> Socket&;
 		auto operator<<(uint32_t data) -> Socket&;
 		auto operator<<(Flush flush)   -> Socket&;
+
+		auto clear() -> Socket&;	
+		auto is_empty() -> bool;
 
 		auto operator>>(std::string & string) -> Socket&;
 		auto operator>>(std::vector<char> & vector) -> Socket&;
